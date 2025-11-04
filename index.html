@@ -44,6 +44,7 @@
       resize:vertical;
       background:var(--card);
       color:var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
     }
 
     .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
@@ -96,7 +97,7 @@
     }
     .owner-panel.owner-panel--open{transform:translateY(0);opacity:1;pointer-events:auto}
     .owner-panel h2{margin:0 0 12px;font-size:18px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-    .owner-panel .mode-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;background:var(--pill-bg);border:1px solid var(--pill-border);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+    .owner-panel .mode-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;background:var(--pill-bg);border:1px solid var(--pill-border);font-size:11px;text-transform:uppercase}
     .owner-panel-fields{display:grid;gap:6px;margin-bottom:8px}
     .owner-panel label{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin:0}
     .owner-panel input[type=color]{width:48px;height:28px;border:none;padding:0;background:none;cursor:pointer}
@@ -135,7 +136,7 @@
           <span class="pill" id="modePill">Mode: Simple</span>
           <span class="pill" id="termPill">Terms: 0</span>
         </div>
-        <div class="out" id="output"></div>
+        <div class="out" id="output" aria-live="polite"></div>
         <h3>Glossary</h3>
         <ul class="list" id="glossary"></ul>
       </div>
@@ -144,15 +145,22 @@
 </div>
 
 <script>
-/* ---------------------- Simplifier demo logic ---------------------- */
+/* ---------------------- Simplifier demo logic (safer DOM usage + sentence split fallback) ---------------------- */
 const inputEl = document.getElementById('input');
 const outputEl = document.getElementById('output');
 const glossEl  = document.getElementById('glossary');
 const modePill = document.getElementById('modePill');
 const termPill = document.getElementById('termPill');
 
+function getSentences(text){
+  // Avoid lookbehind for broader compatibility; match sentence-like chunks
+  const matches = text.match(/[^.!?]+[.!?]*/g);
+  if(!matches) return [text.trim()];
+  return matches.map(s => s.trim()).filter(Boolean);
+}
+
 function simplifyAll(text){
-  const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const sentences = getSentences(text);
   const simplifiedSentences = sentences.map(s => s
     .replace(/hereby/gi, 'now')
     .replace(/pursuant to/gi, 'under')
@@ -174,30 +182,81 @@ function simplifyAll(text){
   return { sentences, simplifiedSentences, simplified, glossary: terms };
 }
 
+function clearChildren(el){
+  while(el.firstChild) el.removeChild(el.firstChild);
+}
+
 function render(mode='simple'){
-  const r = simplifyAll(inputEl.value);
+  const r = simplifyAll(inputEl.value || '');
   modePill.textContent = `Mode: ${mode==='simple' ? 'Simple' : 'Line-by-line'}`;
   termPill.textContent = `Terms: ${r.glossary.length}`;
 
   if(mode==='simple'){
-    outputEl.innerHTML = r.simplified;
+    // Use textContent to avoid interpreting HTML
+    outputEl.textContent = r.simplified;
   } else {
-    outputEl.innerHTML = r.sentences.map((orig, i)=>`
-      <div style="margin-bottom:12px">
-        <div><small>Original</small><br>${orig}</div>
-        <div style="margin-top:6px"><small>Simplified</small><br><strong>${r.simplifiedSentences[i]||''}</strong></div>
-      </div>`).join('');
+    clearChildren(outputEl);
+    r.sentences.forEach((orig, i) => {
+      const container = document.createElement('div');
+      container.style.marginBottom = '12px';
+
+      const origLabel = document.createElement('small');
+      origLabel.textContent = 'Original';
+      const origDiv = document.createElement('div');
+      origDiv.appendChild(origLabel);
+      origDiv.appendChild(document.createElement('br'));
+      const origText = document.createElement('div');
+      origText.textContent = orig;
+      origDiv.appendChild(origText);
+
+      const simpLabel = document.createElement('small');
+      simpLabel.textContent = 'Simplified';
+      const simpDiv = document.createElement('div');
+      simpDiv.style.marginTop = '6px';
+      simpDiv.appendChild(simpLabel);
+      simpDiv.appendChild(document.createElement('br'));
+      const simpStrong = document.createElement('strong');
+      simpStrong.textContent = r.simplifiedSentences[i] || '';
+      simpDiv.appendChild(simpStrong);
+
+      container.appendChild(origDiv);
+      container.appendChild(simpDiv);
+      outputEl.appendChild(container);
+    });
   }
 
-  glossEl.innerHTML = r.glossary.length
-    ? r.glossary.map(g=>`<li><strong>${g.term}</strong><br>${g.simple}<br><small>${g.note}</small></li>`).join('')
-    : '<li><small>No special terms detected.</small></li>';
+  // Render glossary safely
+  clearChildren(glossEl);
+  if(r.glossary.length){
+    r.glossary.forEach(g => {
+      const li = document.createElement('li');
+      const termStrong = document.createElement('strong');
+      termStrong.textContent = g.term;
+      const br = document.createElement('br');
+      const simple = document.createElement('div');
+      simple.textContent = g.simple;
+      const note = document.createElement('small');
+      note.textContent = g.note;
+      li.appendChild(termStrong);
+      li.appendChild(br);
+      li.appendChild(simple);
+      li.appendChild(document.createElement('br'));
+      li.appendChild(note);
+      glossEl.appendChild(li);
+    });
+  } else {
+    const li = document.createElement('li');
+    const s = document.createElement('small');
+    s.textContent = 'No special terms detected.';
+    li.appendChild(s);
+    glossEl.appendChild(li);
+  }
 }
 
 document.getElementById('btnSimple').onclick = () => render('simple');
 document.getElementById('btnLine').onclick   = () => render('line');
 document.getElementById('btnCopy').onclick   = async () => {
-  const r = simplifyAll(inputEl.value);
+  const r = simplifyAll(inputEl.value || '');
   try { await navigator.clipboard.writeText(r.simplified); alert('Copied!'); }
   catch { alert('Could not copy.'); }
 };
@@ -206,7 +265,7 @@ render('simple');
 </script>
 
 <!-- ---------------------- Owner Theme Panel ---------------------- -->
-<div id="ownerPanel" class="owner-panel" aria-hidden="true">
+<div id="ownerPanel" class="owner-panel" aria-hidden="true" role="dialog" aria-modal="false">
   <div class="close-row">
     <span>Owner Controls</span>
     <button type="button" id="ownerPanelClose" class="secondary">Close</button>
@@ -326,6 +385,17 @@ render('simple');
     isOpen = open;
     panel.classList.toggle('owner-panel--open', open);
     panel.setAttribute('aria-hidden', String(!open));
+    panel.setAttribute('aria-modal', String(open));
+    if(open){
+      // basic focus management: focus first input
+      setTimeout(()=> {
+        const first = colorInputs[0];
+        if(first) first.focus();
+      }, 10);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
   }
 
   function setTheme(theme){
