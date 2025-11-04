@@ -70,104 +70,128 @@
     </div>
   </div>
 </div>
-
 <script>
+<script>
+// 1) Legal/bureaucratic jargon (shows up in Glossary)
 const JARGON_MAP = {
-  "hereby": { simple: "by this", note: "Formal for ‘by this document/action’." },
-  "thereof": { simple: "of that", note: "Refers back to something earlier." },
-  "therein": { simple: "in that", note: "Means ‘in that place/document’." },
-  "herein": { simple: "in this", note: "Means ‘in this document’." },
-  "notwithstanding": { simple: "despite", note: "Prefer ‘despite’." },
-  "pursuant": { simple: "according to", note: "‘in line with / according to’." },
-  "commence": { simple: "start", note: "Simpler than ‘begin’." },
-  "terminate": { simple: "end", note: "Simpler than ‘finish’." },
-  "remit": { simple: "send/pay", note: "Often to send a payment." },
-  "sufficient": { simple: "enough", note: "Simple synonym." },
-  "utilize": { simple: "use", note: "Prefer ‘use’." },
-  "applicant": { simple: "person applying", note: "The person filling the form." },
-  "reside": { simple: "live", note: "Where you live." },
-  "domicile": { simple: "permanent home", note: "Your main legal home." },
-  "affix": { simple: "attach", note: "Often for signatures/photos." },
-  "affidavit": { simple: "sworn statement", note: "Written statement promised as true." },
-  "consent": { simple: "permission", note: "Saying ‘yes’." },
-  "disclose": { simple: "share", note: "Share information." },
-  "verify": { simple: "confirm", note: "Make sure it’s true." },
-  "invalid": { simple: "not accepted", note: "Won’t be allowed." },
-  "eligible": { simple: "allowed to apply", note: "Meets the rules." },
-  "ineligible": { simple: "not allowed to apply", note: "Doesn’t meet the rules." },
-  "dependent": { simple: "person you support", note: "Child/parent relying on you." },
-  "spouse": { simple: "husband or wife", note: "Married partner." },
-  "common-law": { simple: "live-in partner (12+ months)", note: "Partner you’ve lived with 12+ months." },
-  "sin": { simple: "Social Insurance Number", note: "9-digit number for work/taxes (Canada)." },
-  "assessment": { simple: "review/decision", note: "Government’s review or decision." },
-  "penalty": { simple: "extra charge", note: "Fee for breaking a rule/being late." },
-  "void": { simple: "cancel", note: "Make something not valid." }
+  hereby:{simple:"by this",note:"Formal for ‘by this document/action’."},
+  thereon:{simple:"on that",note:"Refers to something mentioned earlier."},
+  thereof:{simple:"of that",note:"Refers back to earlier thing."},
+  therein:{simple:"in that",note:"In that document/place."},
+  herein:{simple:"in this",note:"In this document."},
+  notwithstanding:{simple:"despite",note:"Prefer ‘despite’."},
+  pursuant:{simple:"according to",note:"In line with / according to."},
+  commence:{simple:"start",note:"Plain verb."},
+  terminate:{simple:"end",note:"Plain verb."},
+  remit:{simple:"send",note:"Often a payment/documents."},
+  sufficient:{simple:"enough",note:"Plain word."},
+  utilize:{simple:"use",note:"Prefer ‘use’."},
+  applicant:{simple:"person applying",note:"The person filling the form."},
+  disclose:{simple:"share",note:"Share information."},
+  verify:{simple:"confirm",note:"Make sure it’s true."},
+  void:{simple:"not valid",note:"Won’t be accepted."},
+  assessment:{simple:"review/decision",note:"Government’s review."},
+  domicile:{simple:"permanent home",note:"Main legal home."},
+  affidavit:{simple:"sworn statement",note:"Statement promised as true."},
+  spouse:{simple:"husband or wife",note:"Married partner."},
+  "common-law":{simple:"live-in partner (12+ months)",note:"Lived together 12+ months."},
+  sin:{simple:"Social Insurance Number",note:"9-digit number in Canada."}
 };
 
-function splitSentences(text){
-  return text.trim().replace(/\s+/g,' ').split(/(?<=[.!?])\s+/);
+// 2) General plain-English rewrites (works on everyday text)
+const PHRASES = [
+  [/in accordance with/gi, "according to"],
+  [/in the event that/gi, "if"],
+  [/in order to/gi, "to"],
+  [/prior to/gi, "before"],
+  [/subsequent to/gi, "after"],
+  [/with respect to/gi, "about"],
+  [/with regard to/gi, "about"],
+  [/for the purpose of/gi, "to"],
+  [/has shifted to/gi, "now uses"],
+  [/is required to/gi, "must"],
+  [/is not required to/gi, "does not have to"],
+  [/including but not limited to/gi, "including"],
+  [/such as/gi, "like"],
+  [/specific forms needed depend on/gi, "forms depend on"],
+  [/in order for/gi, "for"],
+  [/alternative formats upon request/gi, "other formats if you ask"]
+];
+
+// Split sentences safely
+const splitSentences = (t) => t.trim().replace(/\s+/g,' ').split(/(?<=[.!?])\s+/);
+
+// Apply legalese replacements + collect glossary hits
+function replaceJargon(text){
+  const hits = {};
+  const out = text.replace(/\b[\w-]+\b/gi, (tok) => {
+    const key = tok.replace(/[^\w-]/g,"").toLowerCase();
+    const entry = JARGON_MAP[key];
+    if(!entry) return tok;
+    hits[key] ??= { ...entry, count:0 };
+    hits[key].count++;
+    // Keep capitalization of the original token
+    const isCap = /^[A-Z]/.test(tok);
+    const simple = entry.simple;
+    return isCap ? simple.charAt(0).toUpperCase()+simple.slice(1) : simple;
+  });
+  return { text: out, hits };
 }
 
-function simplify(text){
+// Apply general simplifications
+function simplifyPhrases(text){
+  let t = text;
+  for(const [re, rep] of PHRASES) t = t.replace(re, rep);
+  return t;
+}
+
+function simplifyAll(text){
+  // 1) phrase-level simplifications
+  let t = simplifyPhrases(text);
+  // 2) legalese substitutions (and collect glossary)
+  const { text: withJargon, hits } = replaceJargon(t);
+  // 3) split into lines + also provide a single simple paragraph
   const sentences = splitSentences(text);
-  const hits = {};
-  const simplifiedSentences = sentences.map(s =>
-    s.replace(/\b[\w-]+\b/gi, token => {
-      const key = token.replace(/[^\w-]/g,'').toLowerCase();
-      const item = JARGON_MAP[key];
-      if(!item) return token;
-      if(!hits[key]) hits[key] = { ...item, count:0 };
-      hits[key].count++;
-      return item.simple;
-    })
-  );
+  const simplifiedSentences = splitSentences(withJargon).map(s => s.trim());
   return {
     sentences,
     simplifiedSentences,
-    simplified: simplifiedSentences.join(' '),
-    glossary: Object.entries(hits).map(([term, v]) => ({term, ...v}))
+    simplified: simplifiedSentences.join(" "),
+    glossary: Object.entries(hits).map(([term,v])=>({term, ...v}))
   };
 }
 
-const inputEl = document.getElementById('input');
+// Wire up UI
+const inputEl  = document.getElementById('input');
 const outputEl = document.getElementById('output');
-const glossEl = document.getElementById('gloss');
+const glossEl  = document.getElementById('gloss');
 const termPill = document.getElementById('termPill');
 const modePill = document.getElementById('modePill');
 
 function render(mode='simple'){
-  const r = simplify(inputEl.value);
-  modePill.textContent = `Mode: ${mode==='simple' ? 'Simple' : 'Line-by-line'}`;
+  const r = simplifyAll(inputEl.value);
+  modePill.textContent = `Mode: ${mode==='simple'?'Simple':'Line-by-line'}`;
   termPill.textContent = `Terms: ${r.glossary.length}`;
 
   if(mode==='simple'){
     outputEl.innerHTML = r.simplified;
   } else {
-    outputEl.innerHTML = r.sentences.map((s,i)=>`
+    outputEl.innerHTML = r.sentences.map((orig, i)=>`
       <div style="margin-bottom:12px">
-        <div><small>Original</small><br>${s}</div>
-        <div style="margin-top:6px"><small>Simplified</small><br><strong>${r.simplifiedSentences[i]}</strong></div>
-      </div>
-    `).join('');
+        <div><small>Original</small><br>${orig}</div>
+        <div style="margin-top:6px"><small>Simplified</small><br><strong>${r.simplifiedSentences[i]||''}</strong></div>
+      </div>`).join('');
   }
 
-  if(r.glossary.length===0){
-    glossEl.innerHTML = '<li><small>No special terms detected.</small></li>';
-  } else {
-    glossEl.innerHTML = r.glossary.map(g=>`
-      <li>
-        <div><strong>${g.term}</strong></div>
-        <div>${g.simple}</div>
-        <div><small>${g.note}</small></div>
-      </li>
-    `).join('');
-  }
+  glossEl.innerHTML = r.glossary.length
+    ? r.glossary.map(g=>`<li><strong>${g.term}</strong><br>${g.simple}<br><small>${g.note}</small></li>`).join('')
+    : '<li><small>No special terms detected.</small></li>';
 }
 
 document.getElementById('btnSimple').onclick = () => render('simple');
-document.getElementById('btnLine').onclick = () => render('line');
-document.getElementById('btnCopy').onclick = async () => {
-  const r = simplify(inputEl.value);
+document.getElementById('btnLine').onclick   = () => render('line');
+document.getElementById('btnCopy').onclick   = async () => {
+  const r = simplifyAll(inputEl.value);
   try { await navigator.clipboard.writeText(r.simplified); alert('Copied!'); }
   catch { alert('Could not copy.'); }
 };
