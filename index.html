@@ -62,35 +62,35 @@
       <div class="in">
         <div><strong>Tips</strong></div>
         <ol>
-          <li>Use **Line-by-line** to see each sentence with its simpler version.</li>
-          <li>We’ll add a private **Profile Vault** next (name, DOB, address, passport, SIN).</li>
-          <li>Then we’ll **auto-fill PDFs** in-browser using your profile.</li>
+          <li>Use <strong>Line-by-line</strong> to see each sentence with its simpler version.</li>
+          <li>We’ll add a private <strong>Profile Vault</strong> next (name, DOB, address, passport, SIN).</li>
+          <li>Then we’ll <strong>auto-fill PDFs</strong> in-browser using your profile.</li>
         </ol>
       </div>
     </div>
   </div>
 </div>
-<script>
+
 <script>
 // 1) Legal/bureaucratic jargon (shows up in Glossary)
 const JARGON_MAP = {
-  hereby:{simple:"by this",note:"Formal for ‘by this document/action’."},
+  hereby:{simple:"by this",note:"Formal for 'by this document/action'."},
   thereon:{simple:"on that",note:"Refers to something mentioned earlier."},
   thereof:{simple:"of that",note:"Refers back to earlier thing."},
   therein:{simple:"in that",note:"In that document/place."},
   herein:{simple:"in this",note:"In this document."},
-  notwithstanding:{simple:"despite",note:"Prefer ‘despite’."},
+  notwithstanding:{simple:"despite",note:"Prefer 'despite'."},
   pursuant:{simple:"according to",note:"In line with / according to."},
   commence:{simple:"start",note:"Plain verb."},
   terminate:{simple:"end",note:"Plain verb."},
   remit:{simple:"send",note:"Often a payment/documents."},
   sufficient:{simple:"enough",note:"Plain word."},
-  utilize:{simple:"use",note:"Prefer ‘use’."},
+  utilize:{simple:"use",note:"Prefer 'use'."},
   applicant:{simple:"person applying",note:"The person filling the form."},
   disclose:{simple:"share",note:"Share information."},
-  verify:{simple:"confirm",note:"Make sure it’s true."},
-  void:{simple:"not valid",note:"Won’t be accepted."},
-  assessment:{simple:"review/decision",note:"Government’s review."},
+  verify:{simple:"confirm",note:"Make sure it's true."},
+  void:{simple:"not valid",note:"Won't be accepted."},
+  assessment:{simple:"review/decision",note:"Government's review."},
   domicile:{simple:"permanent home",note:"Main legal home."},
   affidavit:{simple:"sworn statement",note:"Statement promised as true."},
   spouse:{simple:"husband or wife",note:"Married partner."},
@@ -130,7 +130,6 @@ function replaceJargon(text){
     if(!entry) return tok;
     hits[key] ??= { ...entry, count:0 };
     hits[key].count++;
-    // Keep capitalization of the original token
     const isCap = /^[A-Z]/.test(tok);
     const simple = entry.simple;
     return isCap ? simple.charAt(0).toUpperCase()+simple.slice(1) : simple;
@@ -146,11 +145,8 @@ function simplifyPhrases(text){
 }
 
 function simplifyAll(text){
-  // 1) phrase-level simplifications
   let t = simplifyPhrases(text);
-  // 2) legalese substitutions (and collect glossary)
   const { text: withJargon, hits } = replaceJargon(t);
-  // 3) split into lines + also provide a single simple paragraph
   const sentences = splitSentences(text);
   const simplifiedSentences = splitSentences(withJargon).map(s => s.trim());
   return {
