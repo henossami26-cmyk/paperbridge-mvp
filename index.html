@@ -9,8 +9,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
-  <!-- LZ-String (for share link compression) -->
+  <!-- LZ-String (for share link compression and compressed glossary) -->
   <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
+  <!-- Mammoth for docx -> text -->
+  <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+  <!-- PDF.js for PDF text extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
   <style>
     :root{
@@ -24,6 +28,7 @@
       --muted: rgba(15,23,42,0.6);
       --radius:14px;
       --shadow: 0 12px 30px rgba(2,6,23,0.08);
+      --focus: rgba(79,70,229,0.18);
     }
     :root[data-theme="dark"]{
       --bg:#0f1224;
@@ -35,6 +40,7 @@
       --pill-border:#2b3158;
       --muted: rgba(227,230,239,0.68);
       --shadow: 0 18px 40px rgba(2,6,23,0.45);
+      --focus: rgba(79,70,229,0.22);
     }
 
     html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;box-sizing:border-box;transition:background .35s ease,color .35s ease;}
@@ -56,7 +62,7 @@
     button{border:none;border-radius:10px;background:var(--accent);color:var(--card);padding:8px 14px;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s;}
     button.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}
     button.ghost{background:transparent;color:var(--muted);border-radius:8px;padding:6px 10px;border:1px solid transparent}
-    button:focus{outline:3px solid color-mix(in srgb,var(--accent) 22%, transparent);outline-offset:3px}
+    button:focus{outline:3px solid var(--focus);outline-offset:3px}
 
     .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--pill-bg);color:var(--text);font-size:13px;border:1px solid var(--pill-border);margin-right:8px}
     .out{background:var(--card);border-radius:12px;padding:12px;border:1px solid var(--border);min-height:120px;box-sizing:border-box}
@@ -71,7 +77,7 @@
 
     /* Theme control */
     .gear{position:fixed;right:20px;bottom:20px;z-index:100;width:56px;height:56px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow);cursor:pointer}
-    .panel{position:fixed;right:20px;bottom:92px;z-index:110;width:340px;max-width:calc(100% - 32px);background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow);transform-origin:100% 100%;transition:transform .18s ease,opacity .16s ease}
+    .panel{position:fixed;right:20px;bottom:92px;z-index:110;width:380px;max-width:calc(100% - 32px);background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow);transform-origin:100% 100%;transition:transform .18s ease,opacity .16s ease}
     .panel.hidden{opacity:0;transform:translateY(6px) scale(.98);pointer-events:none}
     .panel .row{margin-top:8px}
     .panel input[type="color"]{width:48px;height:32px;border:none;padding:0;background:none;cursor:pointer}
@@ -79,6 +85,13 @@
     /* popover */
     .popover{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9999;max-width:680px;width:92%;background:var(--card);border:1px solid var(--border);padding:16px;border-radius:10px;box-shadow:var(--shadow)}
     .popover .close{position:absolute;right:8px;top:8px;border:none;background:transparent;color:var(--muted);cursor:pointer}
+
+    /* file input visually */
+    .fileRow{display:flex;gap:8px;align-items:center;margin-top:10px}
+    .fileRow input[type="file"]{border:1px dashed var(--border);padding:8px;border-radius:8px;background:transparent;color:var(--muted)}
+
+    /* ai button */
+    .ai-btn{background:linear-gradient(90deg,#06b6d4,#7c3aed);}
 
     /* mobile tweaks */
     @media(max-width:480px){.pad{padding:12px}textarea{min-height:160px}}
@@ -89,7 +102,7 @@
     <header>
       <div>
         <h1>🌉 PaperBridge — Understand Every Form</h1>
-        <p class="lead">Client-only demo — everything runs in your browser. Theme and glossary persist locally; drag a glossary JSON to merge it.</p>
+        <p class="lead">Client-only demo — everything runs in your browser. Upload documents, choose reading-level presets, and simplify securely on-device.</p>
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <div class="pill" id="statusPill">Ready</div>
@@ -101,14 +114,26 @@
       <!-- Left: input & controls -->
       <section class="card">
         <div class="pad">
-          <label><strong>Paste form text</strong></label>
+          <label><strong>Paste or upload form text</strong></label>
           <textarea id="input" aria-label="Paste form text">By signing this form, the applicant hereby consents to disclose their SIN pursuant to the program assessment. Notwithstanding any other provision herein, failure to remit sufficient documentation may render the application void.</textarea>
+
+          <div class="fileRow">
+            <input id="fileInput" type="file" accept=".txt,.md,.json,.docx,.pdf" aria-label="Upload text file (.txt, .md, .json, .docx, .pdf)">
+            <div class="muted">Upload .txt/.md/.docx/.pdf. JSON merges to glossary if formatted as term→{simple,note}.</div>
+          </div>
+
+          <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+            <input id="glossaryUpload" type="file" accept=".json" aria-label="Upload glossary JSON" />
+            <button id="btnMergeGlossary" class="ghost">Merge glossary</button>
+            <div class="muted" style="font-size:13px">Upload a glossary JSON (term → {simple,note}) to expand definitions.</div>
+          </div>
 
           <div class="row" style="justify-content:space-between;margin-top:12px;">
             <div style="display:flex;gap:8px;align-items:center">
               <button id="btnSimplify">Simplify</button>
               <button id="btnLine" class="secondary">Line-by-line</button>
               <button id="btnCopy" class="ghost">Copy simplified</button>
+              <button id="btnAI" class="ai-btn" title="AI-assisted rewrite">AI Rewrite</button>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
               <span class="pill" id="modePill">Mode: Simple</span>
@@ -117,7 +142,17 @@
           </div>
 
           <div class="row" style="margin-top:12px;align-items:center">
-            <label class="muted" style="margin-right:6px">Difficulty</label>
+            <label class="muted" style="margin-right:6px">Preset</label>
+            <select id="presetSelect" aria-label="Simplify preset">
+              <option value="eli5">Explain like I'm 5 (ELI5)</option>
+              <option value="5">5 year old</option>
+              <option value="10">10 year old</option>
+              <option value="teen">Teenager</option>
+              <option value="adult">Adult (Plain)</option>
+              <option value="legal">Legal (Keep meaning)</option>
+            </select>
+
+            <label class="muted" style="margin-left:12px">Difficulty</label>
             <input id="difficulty" type="range" min="1" max="3" step="1" value="1" aria-label="Difficulty slider" />
             <div id="diffLabel" class="muted" style="min-width:80px;text-align:right">Simple</div>
           </div>
@@ -129,7 +164,7 @@
             <button id="btnClear" class="ghost" style="color:var(--muted)">Clear</button>
           </div>
 
-          <div style="margin-top:12px" class="muted">Tip: Drag a glossary JSON (term → { simple, note }) onto the page to merge definitions locally.</div>
+          <div style="margin-top:12px" class="muted">Tip: For best results upload plain text or .docx. Large glossaries can be uploaded to expand term definitions.</div>
         </div>
       </section>
 
@@ -156,11 +191,11 @@
 
   <div class="panel hidden" id="themePanel" role="dialog" aria-modal="true" aria-hidden="true">
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <strong>Theme</strong>
+      <strong>Theme & Integrations</strong>
       <button id="themeClose" class="ghost">Close</button>
     </div>
 
-    <div style="margin-top:10px;font-size:13px;color:var(--muted)">Customize colors or paste/export theme JSON.</div>
+    <div style="margin-top:10px;font-size:13px;color:var(--muted)">Customize colors, add external glossary URL, or configure AI endpoint for rewrites.</div>
 
     <div class="row" style="margin-top:12px">
       <label style="flex:1;display:flex;justify-content:space-between;align-items:center">Accent <input type="color" data-var="--accent" id="cAccent" aria-label="Accent color"></label>
@@ -180,13 +215,31 @@
       <button id="themeDark" class="">Dark</button>
     </div>
 
+    <div style="margin-top:10px">
+      <label style="display:block;font-size:13px;margin-top:10px">External compressed glossary URL (optional)</label>
+      <input id="externalGlossaryUrl" type="text" placeholder="/data/glossary.lz (LZ-String compressed JSON)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px" />
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="loadExternalGlossary" class="ghost">Load glossary</button>
+        <button id="clearExternalGlossary" class="ghost">Clear URL</button>
+      </div>
+    </div>
+
+    <div style="margin-top:10px">
+      <label style="display:block;font-size:13px;margin-top:10px">AI endpoint URL (optional)</label>
+      <input id="aiEndpoint" type="text" placeholder="https://your-proxy.example.com/rewrite" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px" />
+      <small class="muted">Provide a proxy endpoint that accepts POST { text, preset, difficulty } and returns { rewritten: "..." }.</small>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="saveAiEndpoint" class="ghost">Save</button>
+      </div>
+    </div>
+
     <div style="display:flex;gap:8px;margin-top:10px">
       <button id="themeCopy" class="ghost">Copy JSON</button>
-      <button id="themePaste" class="ghost">Paste JSON</button>
+      <button id="themePaste" class="ghost">Paste JSON / Glossary</button>
       <button id="themeExport" class="ghost">Export</button>
     </div>
 
-    <small class="muted" style="display:block;margin-top:8px">Changes saved to localStorage. Drop a glossary file to merge definitions.</small>
+    <small class="muted" style="display:block;margin-top:8px">Changes saved to localStorage. Use compressed glossary files with LZ-String for faster loads.</small>
   </div>
 
   <!-- popover template -->
@@ -200,16 +253,21 @@
 
   <script>
   /**********************************************************************
-   * PaperBridge — Single-file enhanced version
-   * - Large embedded glossary (lazy-indexed in worker)
-   * - LZ-String-based share links (cdn)
-   * - Focus trapping, accessible modal, safe DOM rendering
-   * - Difficulty slider, expanded replace rules, highlighting, popovers
+   * PaperBridge — Full updated single-file app
+   * - Lazy external compressed glossary (LZ-String), with worker indexing
+   * - File upload: .txt, .md, .docx (via Mammoth), .pdf (via PDF.js)
+   * - Preset reading-level simplification (ELI5 / age-targeted)
+   * - Difficulty slider + pattern-based simplifier
+   * - AI integration stub (client calls user-configured proxy)
+   * - Safe DOM rendering (no innerHTML for user text)
+   * - Drag/drop and glossary merge + theme customization
    **********************************************************************/
 
   (function(){
     // Elements
     const inputEl = document.getElementById('input');
+    const fileInput = document.getElementById('fileInput');
+    const glossaryUpload = document.getElementById('glossaryUpload');
     const outputEl = document.getElementById('output');
     const glossaryEl = document.getElementById('glossary');
     const btnSimplify = document.getElementById('btnSimplify');
@@ -219,11 +277,13 @@
     const btnPdf = document.getElementById('btnPdf');
     const btnShare = document.getElementById('btnShare');
     const btnClear = document.getElementById('btnClear');
+    const btnAI = document.getElementById('btnAI');
     const difficulty = document.getElementById('difficulty');
     const diffLabel = document.getElementById('diffLabel');
     const modePill = document.getElementById('modePill');
     const termPill = document.getElementById('termPill');
     const statusPill = document.getElementById('statusPill');
+    const presetSelect = document.getElementById('presetSelect');
 
     const gear = document.getElementById('gear');
     const themePanel = document.getElementById('themePanel');
@@ -233,229 +293,27 @@
     const themeCopy = document.getElementById('themeCopy');
     const themePaste = document.getElementById('themePaste');
     const themeExport = document.getElementById('themeExport');
+    const externalGlossaryUrlInput = document.getElementById('externalGlossaryUrl');
+    const loadExternalGlossary = document.getElementById('loadExternalGlossary');
+    const clearExternalGlossary = document.getElementById('clearExternalGlossary');
+    const aiEndpointInput = document.getElementById('aiEndpoint');
+    const saveAiEndpoint = document.getElementById('saveAiEndpoint');
     const colorInputs = Array.from(document.querySelectorAll('#themePanel input[type="color"]'));
     const popoverTpl = document.getElementById('popoverTpl');
 
-    // ------------------------------
-    // LARGE GLOSSARY: Many terms (sample)
-    // (This is intentionally large — complete dictionary style)
-    // ------------------------------
-    const LARGE_GLOSSARY = {
-      "abandonment":{"simple":"giving up a right or property","note":"the act of relinquishing a right or interest"},
-      "abrogate":{"simple":"to cancel or repeal","note":"to officially end a law or agreement"},
-      "accede":{"simple":"agree to a demand","note":"to give consent or approval"},
-      "accession":{"simple":"addition or increase","note":"often used for gaining ownership or territory"},
-      "acknowledgement":{"simple":"a formal statement recognizing something","note":"may be required for signatures or documents"},
-      "acquiesce":{"simple":"to accept without protest","note":"often quietly agreeing to terms"},
-      "action":{"simple":"a lawsuit or legal proceeding","note":""},
-      "actual damages":{"simple":"real losses suffered","note":"money awarded for proven loss"},
-      "addendum":{"simple":"an addition to a document","note":"supplemental material added after the main document"},
-      "adjudicate":{"simple":"to make a legal decision","note":"judge or court makes a determination"},
-      "admissible":{"simple":"acceptable as evidence","note":"meets the rules of evidence in court"},
-      "adverse possession":{"simple":"acquiring property by occupying it","note":"possession without consent, under specific rules"},
-      "affidavit":{"simple":"written statement sworn under oath","note":"used in court or official procedures"},
-      "agent":{"simple":"person acting on another's behalf","note":"may have limited or broad authority"},
-      "agreement":{"simple":"mutual promise between parties","note":""},
-      "allegation":{"simple":"a claim without proof yet","note":"assertion made in a complaint"},
-      "alternative dispute resolution":{"simple":"ways to resolve disputes outside court","note":"includes mediation and arbitration"},
-      "amendment":{"simple":"a formal change to a document","note":"can alter a contract or a law"},
-      "ancillary":{"simple":"supporting or additional","note":"auxiliary matters related to a main issue"},
-      "annulment":{"simple":"voiding something like a marriage or contract","note":"declares it was never valid"},
-      "antecedent":{"simple":"something that came before","note":"prior event or condition"},
-      "antecedent debt":{"simple":"debt existing before an action","note":""},
-      "anticipatory breach":{"simple":"a clear statement one will not perform","note":"gives right to sue before performance date"},
-      "apportionment":{"simple":"dividing responsibility or cost","note":"often used in liability or taxes"},
-      "appeal":{"simple":"asking for a higher court to review","note":""},
-      "appellant":{"simple":"person appealing a decision","note":""},
-      "appellee":{"simple":"person defending the decision on appeal","note":""},
-      "arbitration":{"simple":"binding dispute resolution by an arbitrator","note":"alternative to court trial"},
-      "arm's length":{"simple":"deal between independent parties","note":"no special relationship influences the deal"},
-      "arraignment":{"simple":"court hearing for criminal charges","note":"formal reading of charges"},
-      "arrears":{"simple":"overdue payments","note":"late obligations"},
-      "assign":{"simple":"transfer a right or interest","note":"assignor transfers to assignee"},
-      "assignment":{"simple":"the act of transferring rights","note":""},
-      "assumption of risk":{"simple":"accepting possible danger","note":"may reduce liability in some cases"},
-      "attestation":{"simple":"witnessing and confirming a signature","note":""},
-      "attorney-in-fact":{"simple":"person authorized to act under power of attorney","note":""},
-      "attornment":{"simple":"tenant acknowledges new owner","note":""},
-      "automatism":{"simple":"unconscious action used as defense","note":""},
-      "bailment":{"simple":"temporary transfer of possession without ownership","note":"like leaving goods with a repair shop"},
-      "bailiff":{"simple":"court officer who maintains order","note":""},
-      "bankruptcy":{"simple":"legal process for insolvent debtor","note":""},
-      "bearer":{"simple":"person holding a negotiable instrument","note":""},
-      "beneficiary":{"simple":"person entitled to benefit","note":"often in wills or trusts"},
-      "bequest":{"simple":"gift under a will","note":""},
-      "breach":{"simple":"failure to meet an obligation","note":"contract breach is common"},
-      "bulk sale":{"simple":"sale of inventory outside ordinary course","note":""},
-      "cadastre":{"simple":"official register of property boundaries","note":""},
-      "capricious":{"simple":"unpredictable or whimsical","note":"may refer to arbitrary decisions"},
-      "causation":{"simple":"link between action and harm","note":"needed for liability"},
-      "cede":{"simple":"give up territory or rights","note":""},
-      "certiorari":{"simple":"order to review a lower court","note":"used by higher courts"},
-      "chattel":{"simple":"personal property (not land)","note":""},
-      "circumstantial evidence":{"simple":"indirect evidence suggesting a fact","note":""},
-      "covenant":{"simple":"formal promise in a deed or contract","note":""},
-      "creation of liability":{"simple":"act that causes legal responsibility","note":""},
-      "criminal negligence":{"simple":"careless behavior showing disregard for life","note":""},
-      "cumulative damages":{"simple":"sum of separate losses","note":""},
-      "deed":{"simple":"legal instrument transferring land","note":""},
-      "defamation":{"simple":"false statement harming reputation","note":"libel is written, slander is spoken"},
-      "defendant":{"simple":"person accused in a lawsuit","note":""},
-      "defeasance":{"simple":"clause that voids a provision under conditions","note":""},
-      "defined terms":{"simple":"specific words with set meanings in a document","note":""},
-      "deliberate":{"simple":"intentional","note":""},
-      "demurrer":{"simple":"motion to dismiss for legal insufficiency","note":""},
-      "derivative claim":{"simple":"claim based on another party's right","note":""},
-      "desist":{"simple":"to stop doing something","note":""},
-      "disclaimer":{"simple":"statement denying responsibility or rights","note":""},
-      "disclosure":{"simple":"revealing important information","note":"common in contracts and sales"},
-      "discretionary":{"simple":"based on judgment or choice","note":""},
-      "disparagement":{"simple":"statement that harms a business' reputation","note":""},
-      "divest":{"simple":"to strip of ownership or rights","note":""},
-      "dower":{"simple":"widow's right to a portion of spouse's property","note":""},
-      "duress":{"simple":"coercion forcing agreement","note":"can void contracts"},
-      "easement":{"simple":"right to use another's land for a purpose","note":"e.g., right of way"},
-      "emancipate":{"simple":"free from legal restriction","note":""},
-      "eminent domain":{"simple":"government's power to take private land","note":"must pay fair compensation"},
-      "encumbrance":{"simple":"claim or lien on property","note":""},
-      "enjoin":{"simple":"court order to stop someone doing something","note":"injunction is the noun"},
-      "equitable":{"simple":"based on fairness rather than law","note":"equitable remedies include injunctions"},
-      "estoppel":{"simple":"preventing someone from denying earlier facts","note":""},
-      "eviction":{"simple":"legal removal of tenant from property","note":""},
-      "ex parte":{"simple":"one-sided communication to a court","note":"generally restricted"},
-      "exclusion clause":{"simple":"contract term that limits liability","note":""},
-      "executor":{"simple":"person appointed to carry out a will","note":""},
-      "executory":{"simple":"contract with future performance pending","note":""},
-      "exhibit":{"simple":"document or object presented as evidence","note":""},
-      "fiduciary":{"simple":"person with an obligation to act in other's best interest","note":"e.g., trustees, directors"},
-      "force majeure":{"simple":"unforeseeable event preventing performance","note":"often used to excuse obligations"},
-      "forgery":{"simple":"fraudulent making of a document or signature","note":""},
-      "fraud":{"simple":"intentional deception for gain","note":""},
-      "good faith":{"simple":"honest intention without fraud","note":"implied duty in many contracts"},
-      "grantee":{"simple":"person receiving property by deed","note":""},
-      "grantor":{"simple":"person transferring property by deed","note":""},
-      "guarantee":{"simple":"promise to answer for another's debt","note":""},
-      "guardian":{"simple":"person legally appointed to care for another","note":""},
-      "heir":{"simple":"person entitled to inherit property","note":""},
-      "implied term":{"simple":"contract term not expressly written but assumed","note":""},
-      "indemnify":{"simple":"to compensate someone for loss","note":"indemnity clause shifts risk"},
-      "indictment":{"simple":"formal criminal charge by a grand jury","note":""},
-      "injunction":{"simple":"court order to prevent action","note":""},
-      "insurable interest":{"simple":"financial interest that can be insured","note":""},
-      "intangible":{"simple":"non-physical asset (e.g., copyright)","note":""},
-      "intoxication":{"simple":"defense-related state of impairment","note":""},
-      "joint tenancy":{"simple":"co-ownership with rights of survivorship","note":""},
-      "jurisdiction":{"simple":"authority of a court or agency","note":""},
-      "jus ad bellum":{"simple":"law governing right to go to war","note":""},
-      "laches":{"simple":"delay that bars a claim","note":""},
-      "landlord":{"simple":"owner leasing property to tenant","note":""},
-      "lender":{"simple":"person or institution providing a loan","note":""},
-      "lien":{"simple":"legal claim against property as security","note":""},
-      "liquidated damages":{"simple":"pre-agreed sum for breach","note":""},
-      "litigation":{"simple":"process of taking legal action","note":""},
-      "load-bearing covenant":{"simple":"contract duty that affects property use","note":""},
-      "mandate":{"simple":"an authoritative command","note":""},
-      "martial law":{"simple":"military control over civilian functions","note":""},
-      "misrepresentation":{"simple":"false statement inducing a contract","note":"can make contract voidable"},
-      "mitigation":{"simple":"steps to reduce loss or damage","note":"obligation to minimize losses"},
-      "mortgage":{"simple":"loan secured by property","note":""},
-      "negligence":{"simple":"failure to exercise reasonable care","note":""},
-      "nominee":{"simple":"person appointed to act for another","note":""},
-      "notice":{"simple":"formal information given to a party","note":""},
-      "novation":{"simple":"replacement of one party or obligation with another","note":""},
-      "obligee":{"simple":"person to whom an obligation is owed","note":""},
-      "obligor":{"simple":"person who owes an obligation","note":""},
-      "offeree":{"simple":"person receiving an offer","note":""},
-      "offeror":{"simple":"person making an offer","note":""},
-      "onerous":{"simple":"involving a burden or duty","note":""},
-      "opinion evidence":{"simple":"witness opinion rather than facts","note":""},
-      "oral contract":{"simple":"agreement made by spoken words","note":"may be enforceable in many cases"},
-      "order nisi":{"simple":"temporary court order pending a condition","note":""},
-      "overriding interest":{"simple":"claim on property binding despite registration","note":""},
-      "passive voice":{"simple":"grammatical term; not legal per se","note":""},
-      "party":{"simple":"individual or entity in a contract or case","note":""},
-      "patent":{"simple":"exclusive right to an invention","note":""},
-      "per diem":{"simple":"daily allowance or rate","note":""},
-      "partial performance":{"simple":"doing part of a contract to enforce it","note":""},
-      "partition":{"simple":"division of property among owners","note":""},
-      "parol evidence":{"simple":"oral evidence about written contract terms","note":"may be excluded to preserve written terms"},
-      "pecuniary":{"simple":"related to money","note":""},
-      "perjury":{"simple":"lying under oath","note":""},
-      "personal property":{"simple":"movable property not land","note":""},
-      "plaintiff":{"simple":"person who starts a lawsuit","note":""},
-      "precedent":{"simple":"earlier court decision guiding later cases","note":""},
-      "preponderance of evidence":{"simple":"more likely than not standard","note":"civil cases standard"},
-      "privity":{"simple":"direct relationship between parties to a contract","note":""},
-      "probate":{"simple":"court process for distributing a will","note":""},
-      "probable cause":{"simple":"reasonable grounds for police action","note":""},
-      "procuration":{"simple":"authority to act for another","note":""},
-      "prohibition":{"simple":"court order preventing action","note":""},
-      "promissory estoppel":{"simple":"enforcing a promise when relied upon","note":""},
-      "property":{"simple":"anything that can be owned","note":""},
-      "proprietary":{"simple":"relating to ownership","note":""},
-      "prosecution":{"simple":"legal proceedings against someone in criminal law","note":""},
-      "public policy":{"simple":"governmental interest used to void certain agreements","note":""},
-      "quid pro quo":{"simple":"something given in return for something else","note":""},
-      "quorum":{"simple":"minimum number of members required to act","note":""},
-      "ratify":{"simple":"to approve or confirm","note":""},
-      "real property":{"simple":"land and things attached to it","note":""},
-      "realtor":{"simple":"real estate professional","note":""},
-      "recission":{"simple":"canceling a contract and returning parties to status quo","note":""},
-      "recuse":{"simple":"to disqualify oneself from judging a case","note":""},
-      "reformation":{"simple":"court changing a document to reflect true intent","note":""},
-      "replevin":{"simple":"action to recover personal property wrongfully taken","note":""},
-      "rescind":{"simple":"to revoke or cancel","note":""},
-      "residual estate":{"simple":"remainder of estate after gifts and expenses","note":""},
-      "res judicata":{"simple":"issue already judged and binding","note":""},
-      "respondeat superior":{"simple":"employer liable for employee actions","note":""},
-      "restraining order":{"simple":"court order to stop something","note":""},
-      "reversion":{"simple":"property returns to original owner after condition ends","note":""},
-      "right of first refusal":{"simple":"option to match another offer first","note":""},
-      "seisin":{"simple":"possession of land under feudal law","note":""},
-      "security interest":{"simple":"lender's right in debtor's property","note":""},
-      "severability":{"simple":"if one part of a contract is invalid, others remain","note":""},
-      "specific performance":{"simple":"court orders party to fulfill contract","note":""},
-      "statute of limitations":{"simple":"time limit to bring a claim","note":""},
-      "subrogation":{"simple":"one party steps into rights of another to claim recovery","note":""},
-      "succession":{"simple":"order of inheritance","note":""},
-      "sum certain":{"simple":"fixed amount owed","note":""},
-      "surety":{"simple":"person who guarantees another's debt","note":""},
-      "tort":{"simple":"civil wrong causing harm","note":""},
-      "trade secret":{"simple":"confidential business info providing advantage","note":""},
-      "trust":{"simple":"legal arrangement holding property for beneficiaries","note":""},
-      "usufruct":{"simple":"right to use and enjoy another's property","note":""},
-      "vacate":{"simple":"to set aside a judgment or order","note":""},
-      "venue":{"simple":"location where case is tried","note":""},
-      "vested interest":{"simple":"secured right or claim","note":""},
-      "vicarious liability":{"simple":"liability for someone else's actions","note":""},
-      "voidable":{"simple":"may be declared invalid by one party","note":""},
-      "warranty":{"simple":"promise about product or service condition","note":""},
-      "will":{"simple":"testament directing distribution of property","note":""},
-      "writ":{"simple":"formal written order from a court","note":""},
-      "zoning":{"simple":"regulations about land use","note":""}
-    };
-
-    // ------------------------------
-    // Worker: build index (lazy): we create a worker from a blob so main file remains single-file
-    // ------------------------------
+    // worker for indexing glossary
     const workerCode = `
       self.onmessage = function(ev) {
         const { type, glossary } = ev.data;
         if (type === 'build') {
           const index = {};
           for (const [k, v] of Object.entries(glossary)) {
-            index[k.toLowerCase()] = v;
-            // include simple morphological variants: plural (naive)
+            const key = k.toLowerCase();
+            index[key] = v;
+            // naive pluralization variant
             if (k.length > 3 && !k.endsWith('s')) index[(k + 's').toLowerCase()] = v;
           }
           self.postMessage({ type: 'ready', index });
-        } else if (type === 'query') {
-          const q = ev.data.q.toLowerCase();
-          const results = [];
-          for (const [k, v] of Object.entries(ev.data.index || {})) {
-            if (k.includes(q)) results.push({term:k, def:v});
-          }
-          self.postMessage({ type:'queryResult', results });
         }
       };
     `;
@@ -465,60 +323,112 @@
 
     let glossaryIndex = null;
     let workerReady = false;
-    function buildGlossaryIndex() {
-      if (workerReady || glossaryIndex) return;
-      statusPill.textContent = 'Indexing glossary…';
-      glossaryWorker.postMessage({ type: 'build', glossary: LARGE_GLOSSARY });
-    }
+
     glossaryWorker.onmessage = (ev) => {
-      if (ev.data.type === 'ready') {
+      if (ev.data && ev.data.type === 'ready') {
         glossaryIndex = ev.data.index;
         workerReady = true;
-        statusPill.textContent = 'Glossary ready';
-      } else if (ev.data.type === 'queryResult') {
-        // not used in basic flow; could show search results
+        statusPill.textContent = 'Glossary indexed';
       }
     };
 
-    // Immediately begin indexing in background (lazy but proactive)
-    setTimeout(buildGlossaryIndex, 200);
+    // Local fallback glossary (small sample). The full-large glossary is loaded lazily.
+    const FALLBACK_GLOSSARY = {
+      "applicant":{"simple":"person applying","note":"the person using the form"},
+      "hereby":{"simple":"now","note":"formal word often used by the document"},
+      "pursuant to":{"simple":"according to","note":"refers to a rule or law"},
+      "notwithstanding":{"simple":"even though","note":"overrides another clause"},
+      "remit":{"simple":"send","note":"send documents, fees, or proof"},
+      "void":{"simple":"invalid","note":"not accepted"}
+    };
 
-    // ------------------------------
-    // Utilities
-    // ------------------------------
+    // We'll maintain LARGE_GLOSSARY as the primary store (initially fallback)
+    const LARGE_GLOSSARY = Object.assign({}, FALLBACK_GLOSSARY);
+
+    // attempt to load user-configured external glossary (LZ-String compressed)
+    function fetchAndLoadExternalGlossary(url) {
+      if (!url) return Promise.reject(new Error('No URL'));
+      statusPill.textContent = 'Loading external glossary…';
+      return fetch(url).then(r => {
+        if (!r.ok) throw new Error('Failed to fetch glossary');
+        return r.text();
+      }).then(txt => {
+        // assume text is LZ compressed via compressToEncodedURIComponent
+        let decompressed;
+        try {
+          decompressed = LZString.decompressFromEncodedURIComponent(txt);
+        } catch (e) {
+          // maybe it's raw JSON string
+          try { decompressed = txt; } catch (err) { decompressed = null; }
+        }
+        if (!decompressed) throw new Error('Failed to decompress glossary');
+        let parsed;
+        try { parsed = JSON.parse(decompressed); } catch (e) { parsed = null; }
+        if (!parsed) throw new Error('Invalid glossary JSON');
+        Object.assign(LARGE_GLOSSARY, parsed);
+        buildGlossaryIndex();
+        statusPill.textContent = 'External glossary loaded';
+        return parsed;
+      });
+    }
+
+    // Build index via worker
+    function buildGlossaryIndex() {
+      if (workerReady && glossaryIndex) {
+        // rebuild by sending glossary again (worker will post ready again)
+      }
+      statusPill.textContent = 'Indexing glossary…';
+      glossaryWorker.postMessage({ type: 'build', glossary: LARGE_GLOSSARY });
+    }
+
+    // Utility safe DOM
     function appendText(el, text) { el.appendChild(document.createTextNode(text)); }
     function clearChildren(el){ while (el.firstChild) el.removeChild(el.firstChild); }
-
     function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&'); }
+    function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-    // replacement rules per difficulty
-    function getPatterns(level) {
+    // Preset vocab maps for target reading levels (example mappings)
+    const PRESET_VOCAB = {
+      eli5: {
+        "applicant":"person applying",
+        "pursuant to":"because of",
+        "hereby":"now",
+        "notwithstanding":"even though",
+        "remit":"send",
+        "void":"not valid",
+        "consents":"says yes",
+        "documentation":"papers",
+        "failure":"if you don't",
+        "assessment":"check",
+        "SIN":"Social Insurance Number (SIN)"
+      },
+      "5": {}, // maps to eli5 at runtime
+      "10": { "consents":"agrees", "documentation":"documents", "assessment":"review" },
+      teen: { "consents":"agrees", "documentation":"documents", "remit":"submit" },
+      adult: { "pursuant to":"under", "notwithstanding":"despite", "remit":"send" },
+      legal: {} // minimal replacements
+    };
+
+    // base replacement patterns depending on difficulty
+    function getBasePatterns(level) {
       const base = [
-        { find: /\\bpursuant to\\b/gi, replace: level===3 ? 'according to' : 'under' },
-        { find: /\\bherein\\b/gi, replace: 'in this document' },
-        { find: /\\bhereby\\b/gi, replace: 'now' },
-        { find: /\\bnotwithstanding\\b/gi, replace: 'even though' },
-        { find: /\\bremit\\b/gi, replace: 'send' },
-        { find: /\\bvoid\\b/gi, replace: 'invalid' },
-        { find: /\\bprior to\\b/gi, replace: 'before' },
-        { find: /\\bsubsequent to\\b/gi, replace: 'after' },
-        { find: /\\bnull and void\\b/gi, replace: 'invalid' },
-        { find: /\\bshall\\b/gi, replace: 'must' }
+        { find: /\bpursuant to\b/gi, replace: level === 3 ? 'according to' : 'under' },
+        { find: /\bherein\b/gi, replace: 'in this document' },
+        { find: /\bhereby\b/gi, replace: 'now' },
+        { find: /\bnotwithstanding\b/gi, replace: 'even though' },
+        { find: /\bremit\b/gi, replace: 'send' },
+        { find: /\bvoid\b/gi, replace: 'invalid' },
+        { find: /\bshall\b/gi, replace: 'must' },
+        { find: /\bprior to\b/gi, replace: 'before' },
+        { find: /\bsubsequent to\b/gi, replace: 'after' }
       ];
-      if (level >= 2) {
-        base.push({ find: /\\bherewith\\b/gi, replace: 'with this' });
-        base.push({ find: /\\bin witness whereof\\b/gi, replace: 'signed' });
-      }
-      if (level === 3) {
-        base.push({ find: /\\bapplicant\\b/gi, replace: 'person applying' });
-        base.push({ find: /\\bSIN\\b/gi, replace: 'Social Insurance Number (SIN)' });
-        base.push({ find: /\\bheretofore\\b/gi, replace: 'before now' });
-      }
+      if (level >= 2) base.push({ find: /\bherewith\b/gi, replace: 'with this' });
+      if (level === 3) base.push({ find: /\bapplicant\b/gi, replace: 'person applying' });
       return base;
     }
 
-    function applyReplacements(text, level) {
-      const patterns = getPatterns(level);
+    // patterns application
+    function applyPatterns(text, patterns) {
       let out = text;
       const hits = [];
       for (const p of patterns) {
@@ -527,44 +437,93 @@
           return typeof p.replace === 'function' ? p.replace(match) : p.replace;
         });
       }
-      return { simplified: out, hits };
+      return { out, hits };
     }
 
-    // Highlighting engine: returns array of nodes (text nodes and marks)
+    // preset vocab application
+    function applyPresetVocab(text, preset) {
+      const key = (preset === '5') ? 'eli5' : preset;
+      const mapping = PRESET_VOCAB[key] || {};
+      if (!Object.keys(mapping).length) return { text, hits: [] };
+      let out = text;
+      const hits = [];
+      const keys = Object.keys(mapping).sort((a,b)=>b.length-a.length);
+      for (const k of keys) {
+        const re = new RegExp('\\b' + escapeRegExp(k) + '\\b','gi');
+        out = out.replace(re, (m) => { hits.push(m); return mapping[k]; });
+      }
+      return { text: out, hits };
+    }
+
+    // naive sentence simplifier for child presets
+    function sentenceSimplify(text, preset) {
+      if (preset === 'legal' || preset === 'adult') return text;
+      const sentences = text.match(/[^.!?]+[.!?]*/g) || [text];
+      const outParts = [];
+      sentences.forEach(s => {
+        let part = s.trim();
+        if (preset === 'eli5' || preset === '5') {
+          part = part.replace(/,\s+/g, '. ').replace(/\s+and\s+/g, '. ');
+        } else if (preset === '10') {
+          part = part.replace(/,\s+/g, '. ');
+        }
+        if (!/[.!?]$/.test(part)) part = part + '.';
+        outParts.push(part);
+      });
+      return outParts.join(' ');
+    }
+
+    // main simplify orchestrator
+    function simplifyForPreset(inputText, presetKey, difficultyLevel) {
+      let text = inputText || '';
+      // base patterns
+      const patterns = getBasePatterns(difficultyLevel);
+      const base = applyPatterns(text, patterns);
+      text = base.out;
+      // preset vocab
+      const pv = applyPresetVocab(text, presetKey);
+      text = pv.text;
+      // sentence simplification
+      text = sentenceSimplify(text, presetKey === '5' ? 'eli5' : presetKey);
+      const hits = base.hits.concat(pv.hits);
+      return { simplified: text, hits };
+    }
+
+    // highlight nodes creation
     function highlightNodes(text, hits) {
       const uniq = Array.from(new Set(hits.map(h => h.toLowerCase().trim()))).filter(Boolean);
       if (!uniq.length) return [document.createTextNode(text)];
-      const escaped = uniq.map(escapeRegExp).join('|');
-      const regex = new RegExp('\\\\b(' + escaped + ')\\\\b', 'gi');
       const fragment = document.createDocumentFragment();
-      let lastIdx = 0;
-      let m;
+      const escaped = uniq.map(escapeRegExp).join('|');
+      const regex = new RegExp('\\b(' + escaped + ')\\b','gi');
+      let last = 0, m;
       while ((m = regex.exec(text)) !== null) {
-        if (m.index > lastIdx) fragment.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
+        if (m.index > last) fragment.appendChild(document.createTextNode(text.slice(last, m.index)));
         const mark = document.createElement('mark');
         mark.className = 'repl';
-        appendText(mark, m[0]);
         mark.dataset.term = m[0];
         mark.title = 'Click to explain';
         mark.addEventListener('click', () => explainTerm(m[0]));
+        mark.appendChild(document.createTextNode(m[0]));
         fragment.appendChild(mark);
-        lastIdx = regex.lastIndex;
+        last = regex.lastIndex;
       }
-      if (lastIdx < text.length) fragment.appendChild(document.createTextNode(text.slice(lastIdx)));
+      if (last < text.length) fragment.appendChild(document.createTextNode(text.slice(last)));
       return Array.from(fragment.childNodes);
     }
 
-    // Render simplified result safely
+    // render result safely
     function renderResult(text, hits) {
       clearChildren(outputEl);
       const nodes = highlightNodes(text, hits);
-      const wrapper = document.createElement('div');
-      wrapper.classList.add('fade-in');
-      nodes.forEach(n => wrapper.appendChild(n));
-      outputEl.appendChild(wrapper);
+      const wrap = document.createElement('div');
+      wrap.classList.add('fade-in');
+      nodes.forEach(n => wrap.appendChild(n));
+      outputEl.appendChild(wrap);
       return Array.from(new Set(hits.map(h => h.toLowerCase().trim()).filter(Boolean)));
     }
 
+    // render glossary list for detected terms
     function renderGlossary(terms) {
       clearChildren(glossaryEl);
       if (!terms || terms.length === 0) {
@@ -581,7 +540,7 @@
         const strong = document.createElement('strong');
         appendText(strong, t);
         li.appendChild(strong);
-        const def = glossaryIndex && glossaryIndex[t.toLowerCase()] ? glossaryIndex[t.toLowerCase()] : LARGE_GLOSSARY[t.toLowerCase()];
+        const def = (glossaryIndex && glossaryIndex[t]) ? glossaryIndex[t] : (LARGE_GLOSSARY[t] || null);
         const div = document.createElement('div');
         div.style.marginTop = '6px';
         appendText(div, def ? def.simple : '(no local definition)');
@@ -598,7 +557,7 @@
       }
     }
 
-    // Popover show
+    // popover
     function showPopover(title, body) {
       const existing = document.querySelector('.popover');
       if (existing) existing.remove();
@@ -610,20 +569,20 @@
       document.body.appendChild(pop);
       pop.querySelector('.close').focus();
     }
-
     function explainTerm(term) {
       const key = term.toLowerCase();
       const def = (glossaryIndex && glossaryIndex[key]) ? glossaryIndex[key] : (LARGE_GLOSSARY[key] || null);
-      if (def) showPopover(term, (def.simple || '') + (def.note ? ('\\n\\n' + def.note) : ''));
-      else showPopover(term, 'No local definition found. Drag/paste a glossary JSON to merge more definitions.');
+      if (def) showPopover(term, (def.simple || '') + (def.note ? ('\n\n' + def.note) : ''));
+      else showPopover(term, 'No local definition found. Upload or paste a glossary JSON to merge more definitions.');
     }
 
-    // Simplify all
-    function simplifyAll(mode = 'simple') {
+    // core actions
+    function simplifyAll(mode='simple') {
       const raw = inputEl.value || '';
+      const preset = presetSelect.value;
       const lvl = parseInt(difficulty.value, 10) || 1;
-      const { simplified, hits } = applyReplacements(raw, lvl);
-      // render
+      const presetKey = (preset === '5') ? 'eli5' : preset;
+      const { simplified, hits } = simplifyForPreset(raw, presetKey, lvl);
       const detected = renderResult(simplified, hits);
       renderGlossary(detected);
       modePill.textContent = `Mode: ${mode === 'simple' ? 'Simple' : (mode === 'line' ? 'Line-by-line' : 'Simple')}`;
@@ -632,58 +591,43 @@
       return { raw, simplified, detected, hits };
     }
 
-    // Line-by-line
+    // line-by-line
     btnLine.addEventListener('click', () => {
       const raw = inputEl.value || '';
       const sentences = raw.match(/[^.!?]+[.!?]*/g) || [raw];
       clearChildren(outputEl);
       let allHits = [];
+      const preset = presetSelect.value;
+      const presetKey = (preset === '5') ? 'eli5' : preset;
+      const lvl = parseInt(difficulty.value,10) || 1;
       sentences.forEach(s => {
-        const p = document.createElement('div');
-        p.style.marginBottom = '12px';
-        const orig = document.createElement('div');
-        const smallO = document.createElement('small');
-        smallO.className = 'muted';
-        appendText(smallO, 'Original');
-        orig.appendChild(smallO);
-        const txtO = document.createElement('div');
-        appendText(txtO, s.trim());
-        orig.appendChild(txtO);
-
-        const smallS = document.createElement('small');
-        smallS.className = 'muted';
-        smallS.style.marginTop = '6px';
-        appendText(smallS, 'Simplified');
-        const simpWrap = document.createElement('div');
-        simpWrap.style.marginTop = '6px';
-        const { simplified, hits } = applyReplacements(s, parseInt(difficulty.value, 10));
-        const parts = highlightNodes(simplified, hits);
-        parts.forEach(node => simpWrap.appendChild(node));
-        p.appendChild(orig);
-        p.appendChild(smallS);
-        p.appendChild(simpWrap);
-        outputEl.appendChild(p);
+        const block = document.createElement('div');
+        block.style.marginBottom = '12px';
+        const smallO = document.createElement('small'); smallO.className = 'muted'; appendText(smallO,'Original');
+        const orig = document.createElement('div'); appendText(orig, s.trim());
+        const smallS = document.createElement('small'); smallS.className = 'muted'; smallS.style.marginTop='6px'; appendText(smallS,'Simplified');
+        const simpWrap = document.createElement('div'); simpWrap.style.marginTop='6px';
+        const { simplified, hits } = simplifyForPreset(s, presetKey, lvl);
+        const nodes = highlightNodes(simplified, hits);
+        nodes.forEach(n => simpWrap.appendChild(n));
+        block.appendChild(smallO); block.appendChild(orig); block.appendChild(smallS); block.appendChild(simpWrap);
+        outputEl.appendChild(block);
         allHits = allHits.concat(hits);
       });
-      const detected = Array.from(new Set(allHits.map(h=>h.toLowerCase().trim())));
+      const detected = Array.from(new Set(allHits.map(h => h.toLowerCase().trim())));
       renderGlossary(detected);
       modePill.textContent = 'Mode: Line-by-line';
       termPill.textContent = `Terms: ${detected.length}`;
       statusPill.textContent = 'Line-by-line view';
     });
 
-    // Buttons
     btnSimplify.addEventListener('click', () => simplifyAll('simple'));
     btnCopy.addEventListener('click', async () => {
       const r = simplifyAll();
-      try {
-        await navigator.clipboard.writeText(r.simplified);
-        alert('Copied simplified text.');
-      } catch {
-        alert('Could not copy.');
-      }
+      try { await navigator.clipboard.writeText(r.simplified); alert('Copied simplified text.'); } catch { alert('Could not copy.'); }
     });
 
+    // download txt
     btnTxt.addEventListener('click', () => {
       const r = simplifyAll();
       const blob = new Blob([r.simplified], { type: 'text/plain;charset=utf-8' });
@@ -691,7 +635,7 @@
       const a = document.createElement('a'); a.href = url; a.download = 'paperbridge-simplified.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     });
 
-    // Print-to-PDF flow for better fidelity
+    // print-to-pdf
     btnPdf.addEventListener('click', () => {
       const r = simplifyAll();
       const w = window.open('', '_blank', 'noopener');
@@ -707,16 +651,15 @@
       setTimeout(()=>w.print(), 300);
     });
 
+    // compressed share via LZ-String
     btnShare.addEventListener('click', async () => {
       const r = simplifyAll();
       try {
         const compressed = LZString.compressToEncodedURIComponent(r.simplified);
         const url = location.origin + location.pathname + '?t=' + compressed;
         await navigator.clipboard.writeText(url);
-        alert('Share link copied. (Compressed)');
-      } catch {
-        alert('Could not create share link.');
-      }
+        alert('Share link copied (compressed).');
+      } catch { alert('Could not create share link.'); }
     });
 
     btnClear.addEventListener('click', () => {
@@ -727,176 +670,79 @@
       statusPill.textContent = 'Cleared';
     });
 
-    // Difficulty UI
     difficulty.addEventListener('input', () => {
       const val = parseInt(difficulty.value,10);
       diffLabel.textContent = val===1 ? 'Simple' : (val===2 ? 'Medium' : 'Strong');
     });
     difficulty.addEventListener('change', () => simplifyAll());
+    presetSelect.addEventListener('change', () => simplifyAll());
 
-    // Share link restore using LZ-String
-    (function restoreFromURL(){
-      try {
-        const params = new URLSearchParams(location.search);
-        const t = params.get('t');
-        if (!t) return;
-        const decompressed = LZString.decompressFromEncodedURIComponent(t);
-        if (decompressed) {
-          clearChildren(outputEl);
-          const wrapper = document.createElement('div');
-          appendText(wrapper, decompressed);
-          outputEl.appendChild(wrapper);
-          statusPill.textContent = 'Shared result';
-          // derive hits by applying replacements on decompressed content
-          const { hits } = applyReplacements(decompressed, parseInt(difficulty.value,10));
-          const detected = Array.from(new Set(hits.map(h=>h.toLowerCase().trim())));
-          renderGlossary(detected);
-          modePill.textContent = 'Mode: Shared';
-          termPill.textContent = `Terms: ${detected.length}`;
-        }
-      } catch(e){}
-    })();
-
-    // ------------------------------
-    // Theme panel & focus trap
-    // ------------------------------
-    const DEFAULT_THEME = {
-      mode:'light',
-      vars:{
-        '--bg':'#f7f7fb','--card':'#ffffff','--text':'#0f172a','--accent':'#0f62fe','--border':'#d7d7e6','--pill-bg':'#eef2ff','--pill-border':'#c7d2fe'
+    // File upload: handle .txt/.md/.json/.docx/.pdf
+    fileInput.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const name = f.name.toLowerCase();
+      if (name.endsWith('.docx')) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          const ab = ev.target.result;
+          mammoth.extractRawText({arrayBuffer:ab}).then(result => {
+            inputEl.value = result.value || '';
+            simplifyAll();
+          }).catch(()=>{ alert('Could not parse docx.'); });
+        };
+        reader.readAsArrayBuffer(f);
+      } else if (name.endsWith('.pdf')) {
+        const reader = new FileReader();
+        reader.onload = async function(ev) {
+          const ab = ev.target.result;
+          try {
+            // pdfjs extraction
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+            const loadingTask = pdfjsLib.getDocument({data:ab});
+            const pdf = await loadingTask.promise;
+            let text = '';
+            for (let i=1;i<=pdf.numPages;i++){
+              const page = await pdf.getPage(i);
+              const content = await page.getTextContent();
+              const strings = content.items.map(it => it.str);
+              text += strings.join(' ') + '\n\n';
+            }
+            inputEl.value = text;
+            simplifyAll();
+          } catch (err) {
+            console.error(err);
+            alert('Could not extract text from PDF. Consider converting to .docx or .txt.');
+          }
+        };
+        reader.readAsArrayBuffer(f);
+      } else {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          inputEl.value = String(ev.target.result || '');
+          simplifyAll();
+        };
+        reader.readAsText(f);
       }
-    };
-    const DARK_THEME = {
-      mode:'dark',
-      vars:{
-        '--bg':'#0f1224','--card':'#111427','--text':'#e3e6ef','--accent':'#4f46e5','--border':'#222745','--pill-bg':'#1f2440','--pill-border':'#2b3158'
-      }
-    };
-
-    function applyTheme(theme) {
-      Object.entries(theme.vars).forEach(([k,v]) => document.documentElement.style.setProperty(k,v));
-      document.documentElement.setAttribute('data-theme', theme.mode === 'dark' ? 'dark' : 'light');
-      // sync inputs
-      colorInputs.forEach(inp => {
-        const key = inp.dataset.var;
-        if (key && theme.vars[key]) inp.value = theme.vars[key];
-      });
-      localStorage.setItem('paperbridge:theme', JSON.stringify(theme));
-    }
-
-    function loadTheme() {
-      try {
-        const raw = localStorage.getItem('paperbridge:theme');
-        if (!raw) {
-          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          applyTheme(prefersDark ? DARK_THEME : DEFAULT_THEME);
-          return;
-        }
-        applyTheme(JSON.parse(raw));
-      } catch { applyTheme(DEFAULT_THEME); }
-    }
-
-    let panelOpen = false;
-    let lastFocused = null;
-    const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
-    function trapFocus(container) {
-      const nodes = Array.from(container.querySelectorAll(focusableSelector)).filter(n => !n.disabled);
-      if (!nodes.length) return;
-      let i = 0;
-      function keyHandler(e) {
-        if (e.key === 'Tab') {
-          e.preventDefault();
-          if (e.shiftKey) i = (i - 1 + nodes.length) % nodes.length;
-          else i = (i + 1) % nodes.length;
-          nodes[i].focus();
-        } else if (e.key === 'Escape') {
-          closePanel();
-        }
-      }
-      container.addEventListener('keydown', keyHandler);
-      return () => container.removeEventListener('keydown', keyHandler);
-    }
-
-    let releaseTrap = null;
-    function openPanel() {
-      lastFocused = document.activeElement;
-      themePanel.classList.remove('hidden');
-      themePanel.setAttribute('aria-hidden', 'false');
-      panelOpen = true;
-      const first = themePanel.querySelector('input[type="color"], button, [tabindex]:not([tabindex="-1"])');
-      if (first) first.focus();
-      releaseTrap = trapFocus(themePanel);
-    }
-    function closePanel() {
-      themePanel.classList.add('hidden');
-      themePanel.setAttribute('aria-hidden', 'true');
-      panelOpen = false;
-      if (lastFocused && lastFocused.focus) lastFocused.focus();
-      if (releaseTrap) { releaseTrap(); releaseTrap = null; }
-    }
-
-    gear.addEventListener('click', () => panelOpen ? closePanel() : openPanel());
-    document.getElementById('openTheme').addEventListener('click', () => panelOpen ? closePanel() : openPanel());
-    themeClose.addEventListener('click', closePanel);
-
-    colorInputs.forEach(inp => {
-      inp.addEventListener('input', (e) => {
-        const k = e.target.dataset.var;
-        const v = e.target.value;
-        if (!k) return;
-        document.documentElement.style.setProperty(k, v);
-        const stored = JSON.parse(localStorage.getItem('paperbridge:theme') || JSON.stringify(DEFAULT_THEME));
-        stored.vars[k] = v;
-        localStorage.setItem('paperbridge:theme', JSON.stringify(stored));
-      });
     });
 
-    themeReset.addEventListener('click', () => {
-      applyTheme(DEFAULT_THEME);
-    });
-
-    themeDark.addEventListener('click', () => {
-      const current = document.documentElement.getAttribute('data-theme') === 'dark';
-      applyTheme(current ? DEFAULT_THEME : DARK_THEME);
-    });
-
-    themeCopy.addEventListener('click', async () => {
-      try {
-        const theme = JSON.parse(localStorage.getItem('paperbridge:theme') || JSON.stringify(DEFAULT_THEME));
-        await navigator.clipboard.writeText(JSON.stringify(theme, null, 2));
-        alert('Theme JSON copied.');
-      } catch { alert('Copy failed.'); }
-    });
-
-    themePaste.addEventListener('click', () => {
-      const raw = prompt('Paste theme JSON or glossary JSON (term→{simple,note})');
-      if (!raw) return;
-      try {
-        const parsed = JSON.parse(raw);
-        // detect if theme or glossary
-        if (parsed.vars) {
-          applyTheme(parsed);
-          alert('Theme applied.');
-        } else {
-          // merge glossary
+    // glossary upload merge
+    glossaryUpload.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(String(reader.result || ''));
           Object.assign(LARGE_GLOSSARY, parsed);
           buildGlossaryIndex();
           alert('Glossary merged.');
-        }
-      } catch (e) { alert('Invalid JSON.'); }
+        } catch (err) { alert('Invalid glossary JSON.'); }
+      };
+      reader.readAsText(f);
     });
 
-    themeExport.addEventListener('click', () => {
-      const theme = localStorage.getItem('paperbridge:theme') || JSON.stringify(DEFAULT_THEME);
-      const blob = new Blob([theme], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'paperbridge-theme.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    });
-
-    loadTheme();
-
-    // Drag/drop glossary file
+    // Drag/drop glossary merge
     document.addEventListener('dragover', e => e.preventDefault());
     document.addEventListener('drop', (e) => {
       e.preventDefault();
@@ -915,48 +761,228 @@
       reader.readAsText(f);
     });
 
-    // Escape HTML helper
-    function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    // Restore from ?t= compressed share
+    (function restoreFromURL(){
+      try {
+        const params = new URLSearchParams(location.search);
+        const t = params.get('t');
+        if (!t) return;
+        const decompressed = LZString.decompressFromEncodedURIComponent(t);
+        if (decompressed) {
+          clearChildren(outputEl);
+          const wrapper = document.createElement('div');
+          appendText(wrapper, decompressed);
+          outputEl.appendChild(wrapper);
+          statusPill.textContent = 'Shared result';
+          // derive hits by running simplifier heuristics to detect potential terms
+          const { hits } = simplifyForPreset(decompressed, presetSelect.value === '5' ? 'eli5' : presetSelect.value, parseInt(difficulty.value,10));
+          const detected = Array.from(new Set(hits.map(h=>h.toLowerCase().trim())));
+          renderGlossary(detected);
+          modePill.textContent = 'Mode: Shared';
+          termPill.textContent = `Terms: ${detected.length}`;
+        }
+      } catch(e){}
+    })();
 
-    // Build index on demand (if not ready)
-    function ensureGlossaryIndex() {
-      if (workerReady && glossaryIndex) return Promise.resolve();
-      return new Promise((res) => {
-        const off = (ev) => {
-          if (ev.data && ev.data.type === 'ready') {
-            glossaryIndex = ev.data.index;
-            workerReady = true;
-            statusPill.textContent = 'Glossary indexed';
-            glossaryWorker.removeEventListener('message', off);
-            res();
-          }
-        };
-        glossaryWorker.addEventListener('message', off);
-        glossaryWorker.postMessage({ type: 'build', glossary: LARGE_GLOSSARY });
-      });
-    }
-
-    // Finally, auto-simplify initial content
-    simplifyAll();
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-      if (e.key.toLowerCase() === 'o' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        e.preventDefault(); panelOpen ? closePanel() : openPanel();
+    // Theme panel & focus trap
+    const DEFAULT_THEME = {
+      mode:'light',
+      vars:{
+        '--bg':'#f7f7fb','--card':'#ffffff','--text':'#0f172a','--accent':'#0f62fe','--border':'#d7d7e6','--pill-bg':'#eef2ff','--pill-border':'#c7d2fe'
       }
-      if (e.key === 'Escape') {
-        if (panelOpen) closePanel();
-        const pop = document.querySelector('.popover'); if (pop) pop.remove();
+    };
+    const DARK_THEME = {
+      mode:'dark',
+      vars:{
+        '--bg':'#0f1224','--card':'#111427','--text':'#e3e6ef','--accent':'#4f46e5','--border':'#222745','--pill-bg':'#1f2440','--pill-border':'#2b3158'
+      }
+    };
+    function applyTheme(theme) {
+      Object.entries(theme.vars).forEach(([k,v]) => document.documentElement.style.setProperty(k,v));
+      document.documentElement.setAttribute('data-theme', theme.mode === 'dark' ? 'dark' : 'light');
+      colorInputs.forEach(inp => {
+        const key = inp.dataset.var;
+        if (key && theme.vars[key]) inp.value = theme.vars[key];
+      });
+      localStorage.setItem('paperbridge:theme', JSON.stringify(theme));
+    }
+    function loadTheme() {
+      try {
+        const raw = localStorage.getItem('paperbridge:theme');
+        if (!raw) {
+          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          applyTheme(prefersDark ? DARK_THEME : DEFAULT_THEME);
+          return;
+        }
+        applyTheme(JSON.parse(raw));
+      } catch { applyTheme(DEFAULT_THEME); }
+    }
+    loadTheme();
+
+    let panelOpen = false; let lastFocused = null;
+    const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    function trapFocus(container) {
+      const nodes = Array.from(container.querySelectorAll(focusableSelector)).filter(n => !n.disabled);
+      if (!nodes.length) return;
+      let i = 0;
+      function keyHandler(e) {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          if (e.shiftKey) i = (i - 1 + nodes.length) % nodes.length;
+          else i = (i + 1) % nodes.length;
+          nodes[i].focus();
+        } else if (e.key === 'Escape') closePanel();
+      }
+      container.addEventListener('keydown', keyHandler);
+      return () => container.removeEventListener('keydown', keyHandler);
+    }
+    let releaseTrap = null;
+    function openPanel() {
+      lastFocused = document.activeElement;
+      themePanel.classList.remove('hidden'); themePanel.setAttribute('aria-hidden','false'); panelOpen = true;
+      const first = themePanel.querySelector('input[type="color"], button, [tabindex]:not([tabindex="-1"])');
+      if (first) first.focus();
+      releaseTrap = trapFocus(themePanel);
+      // populate external glossary & ai endpoint inputs from storage
+      externalGlossaryUrlInput.value = localStorage.getItem('paperbridge:externalGlossaryUrl') || '';
+      aiEndpointInput.value = localStorage.getItem('paperbridge:aiEndpoint') || '';
+    }
+    function closePanel() {
+      themePanel.classList.add('hidden'); themePanel.setAttribute('aria-hidden','true'); panelOpen = false;
+      if (lastFocused && lastFocused.focus) lastFocused.focus();
+      if (releaseTrap) { releaseTrap(); releaseTrap = null; }
+    }
+    gear.addEventListener('click', () => panelOpen ? closePanel() : openPanel());
+    document.getElementById('openTheme').addEventListener('click', () => panelOpen ? closePanel() : openPanel());
+    themeClose.addEventListener('click', closePanel);
+
+    colorInputs.forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const k = e.target.dataset.var; const v = e.target.value;
+        if (!k) return;
+        document.documentElement.style.setProperty(k, v);
+        const stored = JSON.parse(localStorage.getItem('paperbridge:theme') || JSON.stringify(DEFAULT_THEME));
+        stored.vars[k] = v;
+        localStorage.setItem('paperbridge:theme', JSON.stringify(stored));
+      });
+    });
+
+    themeReset.addEventListener('click', () => applyTheme(DEFAULT_THEME));
+    themeDark.addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? DEFAULT_THEME : DARK_THEME));
+    themeCopy.addEventListener('click', async () => {
+      try { const theme = JSON.parse(localStorage.getItem('paperbridge:theme') || JSON.stringify(DEFAULT_THEME)); await navigator.clipboard.writeText(JSON.stringify(theme, null, 2)); alert('Theme JSON copied.'); } catch { alert('Copy failed.'); }
+    });
+    themePaste.addEventListener('click', () => {
+      const raw = prompt('Paste theme JSON or glossary JSON (term→{simple,note})');
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.vars) { applyTheme(parsed); alert('Theme applied.'); }
+        else { Object.assign(LARGE_GLOSSARY, parsed); buildGlossaryIndex(); alert('Glossary merged.'); }
+      } catch (e) { alert('Invalid JSON.'); }
+    });
+    themeExport.addEventListener('click', () => {
+      const theme = localStorage.getItem('paperbridge:theme') || JSON.stringify(DEFAULT_THEME);
+      const blob = new Blob([theme], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'paperbridge-theme.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+
+    // External glossary load
+    loadExternalGlossary.addEventListener('click', () => {
+      const url = externalGlossaryUrlInput.value.trim();
+      if (!url) return alert('Enter a URL to a compressed glossary file (LZ-String compressed JSON).');
+      fetchAndLoadExternalGlossary(url).then(() => {
+        localStorage.setItem('paperbridge:externalGlossaryUrl', url);
+      }).catch(err => { console.error(err); alert('Failed to load external glossary: ' + (err && err.message || 'error')); });
+    });
+    clearExternalGlossary.addEventListener('click', () => {
+      externalGlossaryUrlInput.value = '';
+      localStorage.removeItem('paperbridge:externalGlossaryUrl');
+      alert('Cleared external glossary URL (existing in-memory glossary remains).');
+    });
+
+    // AI endpoint saving
+    saveAiEndpoint.addEventListener('click', () => {
+      const url = aiEndpointInput.value.trim();
+      if (!url) { localStorage.removeItem('paperbridge:aiEndpoint'); alert('Cleared AI endpoint.'); return; }
+      localStorage.setItem('paperbridge:aiEndpoint', url);
+      alert('Saved AI endpoint (client will call this proxy if used).');
+    });
+
+    // Start indexing if there's an external glossary URL saved
+    (function initExternal() {
+      const url = localStorage.getItem('paperbridge:externalGlossaryUrl');
+      if (url) {
+        externalGlossaryUrlInput.value = url;
+        fetchAndLoadExternalGlossary(url).catch(()=>{ /* ignore */ });
+      }
+      // attempt to build index from current LARGE_GLOSSARY
+      setTimeout(buildGlossaryIndex, 200);
+    })();
+
+    // AI rewrite flow: prompts user to confirm & uses saved endpoint
+    btnAI.addEventListener('click', async () => {
+      const endpoint = localStorage.getItem('paperbridge:aiEndpoint') || aiEndpointInput.value.trim();
+      if (!endpoint) {
+        const ok = confirm('No AI endpoint configured. Open Theme panel to set a proxy endpoint?');
+        if (ok) openPanel();
+        return;
+      }
+      const r = simplifyAll();
+      const preset = presetSelect.value;
+      const lvl = parseInt(difficulty.value,10) || 1;
+      statusPill.textContent = 'AI rewriting…';
+      try {
+        const resp = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: r.raw, preset, difficulty: lvl })
+        });
+        if (!resp.ok) throw new Error('AI endpoint error ' + resp.status);
+        const data = await resp.json();
+        if (!data || typeof data.rewritten !== 'string') throw new Error('Invalid response (expect { rewritten: string })');
+        // show AI result in output (safe)
+        clearChildren(outputEl);
+        const wrapper = document.createElement('div');
+        appendText(wrapper, data.rewritten);
+        outputEl.appendChild(wrapper);
+        statusPill.textContent = 'AI rewrite complete';
+        // detect glossary hits from rewritten text
+        const { hits } = simplifyForPreset(data.rewritten, (preset === '5') ? 'eli5' : preset, lvl);
+        const detected = Array.from(new Set(hits.map(h=>h.toLowerCase().trim())));
+        renderGlossary(detected);
+        modePill.textContent = 'Mode: AI';
+        termPill.textContent = `Terms: ${detected.length}`;
+      } catch (err) {
+        console.error(err);
+        alert('AI rewrite failed: ' + (err && err.message));
+        statusPill.textContent = 'AI failed';
       }
     });
 
-    // Expose some debug in window if needed
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'o' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); panelOpen ? closePanel() : openPanel(); }
+      if (e.key === 'Escape') { if (panelOpen) closePanel(); const p = document.querySelector('.popover'); if (p) p.remove(); }
+    });
+
+    // expose some utilities for debugging
     window._paperbridge = {
       simplifyAll,
       LARGE_GLOSSARY,
-      ensureGlossaryIndex
+      buildGlossaryIndex,
+      fetchAndLoadExternalGlossary
     };
+
+    // Initial simplify of sample text
+    simplifyAll();
   })();
+
+  // Configure PDF.js worker path (CDN)
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+  }
   </script>
 </body>
 </html>
