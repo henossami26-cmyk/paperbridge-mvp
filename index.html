@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PaperBridge MVP</title>
+</head>
+<body style="font-family:Arial, sans-serif; margin:40px;">
+  <h1>🌉 PaperBridge MVP</h1>
+  <p>Welcome! This is the first version of our tool that helps newcomers understand and complete government forms easily.</p>
+
+  <textarea id="formText" rows="6" cols="60" placeholder="Paste complex form text here..."></textarea>
+  <br><br>
+  <button onclick="simplifyText()">Simplify Text</button>
+
+  <h3>Result:</h3>
+  <div id="output" style="white-space:pre-wrap; background:#f9f9f9; border:1px solid #ccc; padding:10px;"></div>
+
+  <script>
+    function simplifyText() {
+      const input = document.getElementById('formText').value;
+      const simplified = input
+        .replace(/hereby/gi, "by this")
+        .replace(/thereof/gi, "of that")
+        .replace(/pursuant/gi, "according to")
+        .replace(/notwithstanding/gi, "despite")
+        .replace(/commence/gi, "start")
+        .replace(/terminate/gi, "end");
+      document.getElementById('output').innerText = simplified || "(Your simplified text will appear here)";
+    }
+  </script>
+</body>
+</html>
