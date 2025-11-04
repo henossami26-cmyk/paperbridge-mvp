@@ -77,7 +77,7 @@
 
     /* Theme control */
     .gear{position:fixed;right:20px;bottom:20px;z-index:100;width:56px;height:56px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow);cursor:pointer}
-    .panel{position:fixed;right:20px;bottom:92px;z-index:110;width:380px;max-width:calc(100% - 32px);background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow);transform-origin:100% 100%;transition:transform .18s ease,opacity .16s ease}
+    .panel{position:fixed;right:20px;bottom:92px;z-index:110;width:420px;max-width:calc(100% - 32px);background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow);transform-origin:100% 100%;transition:transform .18s ease,opacity .16s ease}
     .panel.hidden{opacity:0;transform:translateY(6px) scale(.98);pointer-events:none}
     .panel .row{margin-top:8px}
     .panel input[type="color"]{width:48px;height:32px;border:none;padding:0;background:none;cursor:pointer}
@@ -191,11 +191,11 @@
 
   <div class="panel hidden" id="themePanel" role="dialog" aria-modal="true" aria-hidden="true">
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <strong>Theme & Integrations</strong>
+      <strong>Theme & AI</strong>
       <button id="themeClose" class="ghost">Close</button>
     </div>
 
-    <div style="margin-top:10px;font-size:13px;color:var(--muted)">Customize colors, add external glossary URL, or configure AI endpoint for rewrites.</div>
+    <div style="margin-top:10px;font-size:13px;color:var(--muted)">Customize colors, add an external glossary URL, or paste an OpenAI API key for one-click AI rewrite (saved locally).</div>
 
     <div class="row" style="margin-top:12px">
       <label style="flex:1;display:flex;justify-content:space-between;align-items:center">Accent <input type="color" data-var="--accent" id="cAccent" aria-label="Accent color"></label>
@@ -225,12 +225,13 @@
     </div>
 
     <div style="margin-top:10px">
-      <label style="display:block;font-size:13px;margin-top:10px">AI endpoint URL (optional)</label>
-      <input id="aiEndpoint" type="text" placeholder="https://your-proxy.example.com/rewrite" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px" />
-      <small class="muted">Provide a proxy endpoint that accepts POST { text, preset, difficulty } and returns { rewritten: "..." }.</small>
+      <label style="display:block;font-size:13px;margin-top:10px">OpenAI API key (optional — stored in your browser)</label>
+      <input id="aiKeyInput" type="password" placeholder="sk-..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px" />
       <div style="display:flex;gap:8px;margin-top:8px">
-        <button id="saveAiEndpoint" class="ghost">Save</button>
+        <button id="saveAiKey" class="ghost">Save API Key</button>
+        <button id="clearAiKey" class="ghost">Clear Key</button>
       </div>
+      <small class="muted">If you paste an API key here the AI Rewrite will call OpenAI directly from your browser (API key is stored locally). Use a proxy if you don't want to paste keys into the browser.</small>
     </div>
 
     <div style="display:flex;gap:8px;margin-top:10px">
@@ -252,17 +253,6 @@
   </template>
 
   <script>
-  /**********************************************************************
-   * PaperBridge — Full updated single-file app
-   * - Lazy external compressed glossary (LZ-String), with worker indexing
-   * - File upload: .txt, .md, .docx (via Mammoth), .pdf (via PDF.js)
-   * - Preset reading-level simplification (ELI5 / age-targeted)
-   * - Difficulty slider + pattern-based simplifier
-   * - AI integration stub (client calls user-configured proxy)
-   * - Safe DOM rendering (no innerHTML for user text)
-   * - Drag/drop and glossary merge + theme customization
-   **********************************************************************/
-
   (function(){
     // Elements
     const inputEl = document.getElementById('input');
@@ -296,8 +286,9 @@
     const externalGlossaryUrlInput = document.getElementById('externalGlossaryUrl');
     const loadExternalGlossary = document.getElementById('loadExternalGlossary');
     const clearExternalGlossary = document.getElementById('clearExternalGlossary');
-    const aiEndpointInput = document.getElementById('aiEndpoint');
-    const saveAiEndpoint = document.getElementById('saveAiEndpoint');
+    const aiKeyInput = document.getElementById('aiKeyInput');
+    const saveAiKeyBtn = document.getElementById('saveAiKey');
+    const clearAiKeyBtn = document.getElementById('clearAiKey');
     const colorInputs = Array.from(document.querySelectorAll('#themePanel input[type="color"]'));
     const popoverTpl = document.getElementById('popoverTpl');
 
@@ -310,7 +301,6 @@
           for (const [k, v] of Object.entries(glossary)) {
             const key = k.toLowerCase();
             index[key] = v;
-            // naive pluralization variant
             if (k.length > 3 && !k.endsWith('s')) index[(k + 's').toLowerCase()] = v;
           }
           self.postMessage({ type: 'ready', index });
@@ -332,7 +322,7 @@
       }
     };
 
-    // Local fallback glossary (small sample). The full-large glossary is loaded lazily.
+    // Local fallback glossary (small sample). The full-large glossary is loaded lazily if provided.
     const FALLBACK_GLOSSARY = {
       "applicant":{"simple":"person applying","note":"the person using the form"},
       "hereby":{"simple":"now","note":"formal word often used by the document"},
@@ -342,7 +332,6 @@
       "void":{"simple":"invalid","note":"not accepted"}
     };
 
-    // We'll maintain LARGE_GLOSSARY as the primary store (initially fallback)
     const LARGE_GLOSSARY = Object.assign({}, FALLBACK_GLOSSARY);
 
     // attempt to load user-configured external glossary (LZ-String compressed)
@@ -353,18 +342,14 @@
         if (!r.ok) throw new Error('Failed to fetch glossary');
         return r.text();
       }).then(txt => {
-        // assume text is LZ compressed via compressToEncodedURIComponent
         let decompressed;
         try {
-          decompressed = LZString.decompressFromEncodedURIComponent(txt);
-        } catch (e) {
-          // maybe it's raw JSON string
-          try { decompressed = txt; } catch (err) { decompressed = null; }
-        }
-        if (!decompressed) throw new Error('Failed to decompress glossary');
+          // If the file itself is compressed by LZ, it will be a compressed string
+          decompressed = LZString.decompressFromEncodedURIComponent(txt.trim()) || txt;
+        } catch (e) { decompressed = txt; }
         let parsed;
         try { parsed = JSON.parse(decompressed); } catch (e) { parsed = null; }
-        if (!parsed) throw new Error('Invalid glossary JSON');
+        if (!parsed) throw new Error('Invalid or unparsable glossary JSON');
         Object.assign(LARGE_GLOSSARY, parsed);
         buildGlossaryIndex();
         statusPill.textContent = 'External glossary loaded';
@@ -372,11 +357,7 @@
       });
     }
 
-    // Build index via worker
     function buildGlossaryIndex() {
-      if (workerReady && glossaryIndex) {
-        // rebuild by sending glossary again (worker will post ready again)
-      }
       statusPill.textContent = 'Indexing glossary…';
       glossaryWorker.postMessage({ type: 'build', glossary: LARGE_GLOSSARY });
     }
@@ -387,7 +368,7 @@
     function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&'); }
     function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-    // Preset vocab maps for target reading levels (example mappings)
+    // PRESET vocab maps
     const PRESET_VOCAB = {
       eli5: {
         "applicant":"person applying",
@@ -402,14 +383,14 @@
         "assessment":"check",
         "SIN":"Social Insurance Number (SIN)"
       },
-      "5": {}, // maps to eli5 at runtime
+      "5": {},
       "10": { "consents":"agrees", "documentation":"documents", "assessment":"review" },
       teen: { "consents":"agrees", "documentation":"documents", "remit":"submit" },
       adult: { "pursuant to":"under", "notwithstanding":"despite", "remit":"send" },
-      legal: {} // minimal replacements
+      legal: {}
     };
 
-    // base replacement patterns depending on difficulty
+    // expanded base patterns — medium & strong add more replacements
     function getBasePatterns(level) {
       const base = [
         { find: /\bpursuant to\b/gi, replace: level === 3 ? 'according to' : 'under' },
@@ -422,12 +403,19 @@
         { find: /\bprior to\b/gi, replace: 'before' },
         { find: /\bsubsequent to\b/gi, replace: 'after' }
       ];
-      if (level >= 2) base.push({ find: /\bherewith\b/gi, replace: 'with this' });
-      if (level === 3) base.push({ find: /\bapplicant\b/gi, replace: 'person applying' });
+      if (level >= 2) {
+        base.push({ find: /\bherewith\b/gi, replace: 'with this' });
+        base.push({ find: /\bconsents\b/gi, replace: 'agrees' });
+        base.push({ find: /\bdocumentation\b/gi, replace: 'documents' });
+      }
+      if (level === 3) {
+        base.push({ find: /\bapplicant\b/gi, replace: 'person applying' });
+        base.push({ find: /\bSIN\b/gi, replace: 'Social Insurance Number (SIN)' });
+        base.push({ find: /\bheretofore\b/gi, replace: 'before now' });
+      }
       return base;
     }
 
-    // patterns application
     function applyPatterns(text, patterns) {
       let out = text;
       const hits = [];
@@ -440,7 +428,6 @@
       return { out, hits };
     }
 
-    // preset vocab application
     function applyPresetVocab(text, preset) {
       const key = (preset === '5') ? 'eli5' : preset;
       const mapping = PRESET_VOCAB[key] || {};
@@ -455,7 +442,6 @@
       return { text: out, hits };
     }
 
-    // naive sentence simplifier for child presets
     function sentenceSimplify(text, preset) {
       if (preset === 'legal' || preset === 'adult') return text;
       const sentences = text.match(/[^.!?]+[.!?]*/g) || [text];
@@ -473,23 +459,18 @@
       return outParts.join(' ');
     }
 
-    // main simplify orchestrator
     function simplifyForPreset(inputText, presetKey, difficultyLevel) {
       let text = inputText || '';
-      // base patterns
       const patterns = getBasePatterns(difficultyLevel);
       const base = applyPatterns(text, patterns);
       text = base.out;
-      // preset vocab
       const pv = applyPresetVocab(text, presetKey);
       text = pv.text;
-      // sentence simplification
       text = sentenceSimplify(text, presetKey === '5' ? 'eli5' : presetKey);
       const hits = base.hits.concat(pv.hits);
       return { simplified: text, hits };
     }
 
-    // highlight nodes creation
     function highlightNodes(text, hits) {
       const uniq = Array.from(new Set(hits.map(h => h.toLowerCase().trim()))).filter(Boolean);
       if (!uniq.length) return [document.createTextNode(text)];
@@ -512,7 +493,6 @@
       return Array.from(fragment.childNodes);
     }
 
-    // render result safely
     function renderResult(text, hits) {
       clearChildren(outputEl);
       const nodes = highlightNodes(text, hits);
@@ -523,7 +503,6 @@
       return Array.from(new Set(hits.map(h => h.toLowerCase().trim()).filter(Boolean)));
     }
 
-    // render glossary list for detected terms
     function renderGlossary(terms) {
       clearChildren(glossaryEl);
       if (!terms || terms.length === 0) {
@@ -557,7 +536,6 @@
       }
     }
 
-    // popover
     function showPopover(title, body) {
       const existing = document.querySelector('.popover');
       if (existing) existing.remove();
@@ -697,7 +675,6 @@
         reader.onload = async function(ev) {
           const ab = ev.target.result;
           try {
-            // pdfjs extraction
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
             const loadingTask = pdfjsLib.getDocument({data:ab});
             const pdf = await loadingTask.promise;
@@ -774,7 +751,6 @@
           appendText(wrapper, decompressed);
           outputEl.appendChild(wrapper);
           statusPill.textContent = 'Shared result';
-          // derive hits by running simplifier heuristics to detect potential terms
           const { hits } = simplifyForPreset(decompressed, presetSelect.value === '5' ? 'eli5' : presetSelect.value, parseInt(difficulty.value,10));
           const detected = Array.from(new Set(hits.map(h=>h.toLowerCase().trim())));
           renderGlossary(detected);
@@ -843,9 +819,8 @@
       const first = themePanel.querySelector('input[type="color"], button, [tabindex]:not([tabindex="-1"])');
       if (first) first.focus();
       releaseTrap = trapFocus(themePanel);
-      // populate external glossary & ai endpoint inputs from storage
       externalGlossaryUrlInput.value = localStorage.getItem('paperbridge:externalGlossaryUrl') || '';
-      aiEndpointInput.value = localStorage.getItem('paperbridge:aiEndpoint') || '';
+      aiKeyInput.value = localStorage.getItem('paperbridge:aiKey') || '';
     }
     function closePanel() {
       themePanel.classList.add('hidden'); themePanel.setAttribute('aria-hidden','true'); panelOpen = false;
@@ -902,12 +877,17 @@
       alert('Cleared external glossary URL (existing in-memory glossary remains).');
     });
 
-    // AI endpoint saving
-    saveAiEndpoint.addEventListener('click', () => {
-      const url = aiEndpointInput.value.trim();
-      if (!url) { localStorage.removeItem('paperbridge:aiEndpoint'); alert('Cleared AI endpoint.'); return; }
-      localStorage.setItem('paperbridge:aiEndpoint', url);
-      alert('Saved AI endpoint (client will call this proxy if used).');
+    // AI key save / clear (stores locally)
+    saveAiKeyBtn.addEventListener('click', () => {
+      const key = aiKeyInput.value.trim();
+      if (!key) return alert('Enter your OpenAI API key (starts with sk-)');
+      localStorage.setItem('paperbridge:aiKey', key);
+      alert('API key saved locally. AI Rewrite will call OpenAI directly from your browser.');
+    });
+    clearAiKeyBtn.addEventListener('click', () => {
+      localStorage.removeItem('paperbridge:aiKey');
+      aiKeyInput.value = '';
+      alert('Cleared saved API key.');
     });
 
     // Start indexing if there's an external glossary URL saved
@@ -917,46 +897,85 @@
         externalGlossaryUrlInput.value = url;
         fetchAndLoadExternalGlossary(url).catch(()=>{ /* ignore */ });
       }
-      // attempt to build index from current LARGE_GLOSSARY
       setTimeout(buildGlossaryIndex, 200);
     })();
 
-    // AI rewrite flow: prompts user to confirm & uses saved endpoint
+    // AI rewrite: uses saved API key if present, else asks for proxy URL fallback
     btnAI.addEventListener('click', async () => {
-      const endpoint = localStorage.getItem('paperbridge:aiEndpoint') || aiEndpointInput.value.trim();
-      if (!endpoint) {
-        const ok = confirm('No AI endpoint configured. Open Theme panel to set a proxy endpoint?');
-        if (ok) openPanel();
+      const savedKey = localStorage.getItem('paperbridge:aiKey') || '';
+      const proxy = localStorage.getItem('paperbridge:aiEndpoint') || '';
+      if (!savedKey && !proxy) {
+        const open = confirm('No OpenAI API key or proxy configured. Paste your API key into Theme → OpenAI API key to enable one-click AI Rewrite, or configure a proxy. Open theme panel now?');
+        if (open) openPanel();
         return;
       }
-      const r = simplifyAll();
+
       const preset = presetSelect.value;
       const lvl = parseInt(difficulty.value,10) || 1;
+      const r = simplifyAll(); // show initial simplified view and get raw
+      const payloadText = r.raw || inputEl.value || '';
+
+      // Build a controlled prompt
+      const prompt = `Simplify the following text for reading-level="${preset}" with difficulty=${lvl}. Keep the original meaning and do not add legal advice. Output only the simplified text. Original:\n\n${payloadText}`;
+
       statusPill.textContent = 'AI rewriting…';
       try {
-        const resp = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: r.raw, preset, difficulty: lvl })
-        });
-        if (!resp.ok) throw new Error('AI endpoint error ' + resp.status);
-        const data = await resp.json();
-        if (!data || typeof data.rewritten !== 'string') throw new Error('Invalid response (expect { rewritten: string })');
-        // show AI result in output (safe)
+        let rewritten = null;
+        if (savedKey) {
+          // Direct OpenAI call (browser). WARNING: your key is exposed in your browser.
+          const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + savedKey
+            },
+            body: JSON.stringify({
+              model: 'gpt-3.5-turbo',
+              messages: [
+                { role:'system', content:'You are a helpful assistant that simplifies text while preserving meaning. Keep output clear and concise.' },
+                { role:'user', content: prompt }
+              ],
+              max_tokens: 2000,
+              temperature: 0.25
+            })
+          });
+          if (!resp.ok) {
+            const txt = await resp.text();
+            throw new Error('OpenAI API error: ' + resp.status + ' ' + txt);
+          }
+          const j = await resp.json();
+          rewritten = j?.choices?.[0]?.message?.content || null;
+        } else {
+          // fallback to proxy if configured
+          const proxyUrl = proxy;
+          const resp = await fetch(proxyUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: payloadText, preset, difficulty: lvl })
+          });
+          if (!resp.ok) throw new Error('Proxy error ' + resp.status);
+          const j = await resp.json();
+          rewritten = j.rewritten || j.result || j.text || null;
+        }
+
+        if (!rewritten) throw new Error('No rewritten text returned from AI.');
+
+        // show result
         clearChildren(outputEl);
         const wrapper = document.createElement('div');
-        appendText(wrapper, data.rewritten);
+        appendText(wrapper, rewritten);
         outputEl.appendChild(wrapper);
         statusPill.textContent = 'AI rewrite complete';
-        // detect glossary hits from rewritten text
-        const { hits } = simplifyForPreset(data.rewritten, (preset === '5') ? 'eli5' : preset, lvl);
+
+        // detect glossary hits
+        const { hits } = simplifyForPreset(rewritten, preset === '5' ? 'eli5' : preset, lvl);
         const detected = Array.from(new Set(hits.map(h=>h.toLowerCase().trim())));
         renderGlossary(detected);
         modePill.textContent = 'Mode: AI';
         termPill.textContent = `Terms: ${detected.length}`;
       } catch (err) {
         console.error(err);
-        alert('AI rewrite failed: ' + (err && err.message));
+        alert('AI Rewrite failed: ' + (err && err.message ? err.message : String(err)));
         statusPill.textContent = 'AI failed';
       }
     });
@@ -977,12 +996,12 @@
 
     // Initial simplify of sample text
     simplifyAll();
-  })();
 
-  // Configure PDF.js worker path (CDN)
-  if (window.pdfjsLib) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-  }
+    // Configure PDF.js worker path (CDN)
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    }
+  })();
   </script>
 </body>
 </html>
