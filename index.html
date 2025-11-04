@@ -5,21 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PaperBridge — MVP</title>
   <style>
-    body{font:16px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px;background:#f7f7fb}
+    /* Theme variables live here; press Shift+O to open the owner panel and restyle on the fly. */
+    :root{
+      --bg:#f7f7fb;
+      --card:#ffffff;
+      --text:#0f172a;
+      --accent:#0f62fe;
+      --border:#d7d7e6;
+      --pill-bg:#eef2ff;
+      --pill-border:#c7d2fe;
+    }
+    body{font:16px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px;background:var(--bg);color:var(--text);}
     .wrap{max-width:1100px;margin:0 auto}
     h1{margin:0 0 12px}
     .grid{display:grid;grid-template-columns:1fr;gap:16px}
     @media(min-width:900px){.grid{grid-template-columns:1fr 1fr}}
-    .card{background:#fff;border:1px solid #e6e6ef;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px color-mix(in srgb, var(--text) 10%, transparent)}
     .in{padding:16px}
-    textarea{width:100%;height:230px;border:1px solid #d7d7e6;border-radius:10px;padding:12px;resize:vertical}
+    textarea{width:100%;height:230px;border:1px solid var(--border);border-radius:10px;padding:12px;resize:vertical;background:var(--card);color:var(--text)}
     .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-    button{border:1px solid #d7d7e6;border-radius:10px;background:#0f62fe;color:#fff;padding:8px 12px;cursor:pointer}
-    button.secondary{background:#fff;color:#0f172a}
-    .out{background:#fff;border:1px solid #e6e6ef;border-radius:12px;padding:16px;min-height:120px}
-    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#1f2937;font-size:12px;border:1px solid #c7d2fe;margin-right:6px}
-    .list li{padding:8px 0;border-top:1px solid #f0f0f6}
-    small{color:#6b7280}
+    button{border:1px solid var(--border);border-radius:10px;background:var(--accent);color:var(--card);padding:8px 12px;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}
+    button:hover{transform:translateY(-1px);box-shadow:0 4px 12px color-mix(in srgb, var(--accent) 25%, transparent)}
+    button.secondary{background:var(--card);color:var(--text)}
+    .out{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;min-height:120px}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--pill-bg);color:var(--text);font-size:12px;border:1px solid var(--pill-border);margin-right:6px}
+    .list li{padding:8px 0;border-top:1px solid var(--border)}
+    small{color:var(--text);opacity:.7}
+    .owner-panel{position:fixed;bottom:24px;right:24px;width:280px;max-width:calc(100% - 32px);background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:14px;box-shadow:0 18px 40px color-mix(in srgb, var(--text) 35%, transparent);padding:16px;transform:translateY(calc(100% + 32px));transition:transform .25s ease,opacity .2s ease;opacity:0;pointer-events:none;z-index:20}
+    .owner-panel.owner-panel--open{transform:translateY(0);opacity:1;pointer-events:auto}
+    .owner-panel h2{margin:0 0 12px;font-size:18px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .owner-panel .mode-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;background:var(--pill-bg);border:1px solid var(--pill-border);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+    .owner-panel-fields{display:grid;gap:6px;margin-bottom:8px}
+    .owner-panel label{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin:0}
+    .owner-panel input[type=color]{width:48px;height:28px;border:none;padding:0;background:none;cursor:pointer}
+    .owner-panel .panel-buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+    .owner-panel .panel-buttons button{font-size:12px;padding:8px 10px}
+    .owner-panel .panel-buttons button.secondary{color:var(--text)}
+    .owner-panel .foot-buttons{display:flex;gap:8px;margin-top:12px}
+    .owner-panel .foot-buttons button{flex:1;font-size:12px;padding:8px 10px}
+    .owner-panel .close-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:12px}
+    .owner-panel .close-row button{font-size:12px;padding:6px 10px}
+    .owner-panel small{display:block;margin-top:6px;font-size:11px}
   </style>
 </head>
 <body>
@@ -193,6 +219,215 @@ document.getElementById('btnCopy').onclick   = async () => {
 };
 
 render('simple');
+</script>
+
+<div id="ownerPanel" class="owner-panel" aria-hidden="true">
+  <div class="close-row">
+    <span>Owner Controls</span>
+    <button type="button" id="ownerPanelClose" class="secondary">Close</button>
+  </div>
+  <h2>Theme <span class="mode-pill" id="ownerModePill">LIGHT</span></h2>
+  <div class="owner-panel-fields">
+    <label>Accent <input type="color" data-var="--accent"></label>
+    <label>Background <input type="color" data-var="--bg"></label>
+    <label>Card <input type="color" data-var="--card"></label>
+    <label>Text <input type="color" data-var="--text"></label>
+    <label>Border <input type="color" data-var="--border"></label>
+    <label>Pill BG <input type="color" data-var="--pill-bg"></label>
+    <label>Pill Border <input type="color" data-var="--pill-border"></label>
+  </div>
+  <div class="panel-buttons">
+    <button type="button" id="ownerReset" class="secondary">Reset</button>
+    <button type="button" id="ownerDarkToggle">Toggle Dark Mode</button>
+  </div>
+  <div class="foot-buttons">
+    <button type="button" id="ownerCopy" class="secondary">Copy JSON</button>
+    <button type="button" id="ownerPaste">Paste JSON</button>
+  </div>
+  <div class="foot-buttons">
+    <button type="button" id="ownerExport" class="secondary">Theme Export</button>
+  </div>
+  <small>Changes save automatically. Shift+O toggles this panel.</small>
+</div>
+
+<script>
+// Owner theme panel logic: Shift+O toggles the panel, updates CSS variables, and syncs with localStorage.
+(() => {
+  const STORAGE_KEY = 'paperbridge:theme';
+  const DEFAULT_THEME = {
+    mode:'light',
+    vars:{
+      '--bg':'#f7f7fb',
+      '--card':'#ffffff',
+      '--text':'#0f172a',
+      '--accent':'#0f62fe',
+      '--border':'#d7d7e6',
+      '--pill-bg':'#eef2ff',
+      '--pill-border':'#c7d2fe'
+    }
+  };
+  const DARK_THEME = {
+    mode:'dark',
+    vars:{
+      '--bg':'#0b1020',
+      '--card':'#111427',
+      '--text':'#e5e7eb',
+      '--accent':'#4f46e5',
+      '--border':'#222745',
+      '--pill-bg':'#1f2440',
+      '--pill-border':'#2b3158'
+    }
+  };
+
+  const panel = document.getElementById('ownerPanel');
+  const closeButton = document.getElementById('ownerPanelClose');
+  const modePill = document.getElementById('ownerModePill');
+  const colorInputs = Array.from(panel.querySelectorAll('input[type="color"]'));
+  const resetButton = document.getElementById('ownerReset');
+  const toggleDarkButton = document.getElementById('ownerDarkToggle');
+  const copyButton = document.getElementById('ownerCopy');
+  const pasteButton = document.getElementById('ownerPaste');
+  const exportButton = document.getElementById('ownerExport');
+
+  let isOpen = false;
+  let currentTheme = loadTheme();
+
+  applyTheme(currentTheme);
+  syncInputs();
+  updateModePill();
+
+  function loadTheme(){
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if(!stored) return { ...DEFAULT_THEME, vars:{...DEFAULT_THEME.vars} };
+      const parsed = JSON.parse(stored);
+      if(!isValidTheme(parsed)) throw new Error('Invalid theme structure');
+      return {
+        mode:parsed.mode || 'light',
+        vars:{ ...DEFAULT_THEME.vars, ...parsed.vars }
+      };
+    } catch {
+      return { ...DEFAULT_THEME, vars:{...DEFAULT_THEME.vars} };
+    }
+  }
+
+  function saveTheme(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(currentTheme));
+  }
+
+  function applyTheme(theme){
+    Object.entries(theme.vars).forEach(([key,value]) => {
+      document.documentElement.style.setProperty(key, value);
+    });
+    document.documentElement.dataset.themeMode = theme.mode;
+  }
+
+  function syncInputs(){
+    for(const input of colorInputs){
+      const key = input.dataset.var;
+      if(key && currentTheme.vars[key]){
+        input.value = currentTheme.vars[key];
+      }
+    }
+  }
+
+  function updateModePill(){
+    const label = (currentTheme.mode || 'light').toUpperCase();
+    modePill.textContent = label;
+  }
+
+  function setPanelState(open){
+    isOpen = open;
+    panel.classList.toggle('owner-panel--open', open);
+    panel.setAttribute('aria-hidden', String(!open));
+  }
+
+  function setTheme(theme){
+    currentTheme = {
+      mode:theme.mode,
+      vars:{ ...DEFAULT_THEME.vars, ...theme.vars }
+    };
+    applyTheme(currentTheme);
+    syncInputs();
+    updateModePill();
+    saveTheme();
+  }
+
+  function isValidTheme(candidate){
+    const required = Object.keys(DEFAULT_THEME.vars);
+    if(!candidate || typeof candidate !== 'object') return false;
+    if(!candidate.vars || typeof candidate.vars !== 'object') return false;
+    if(typeof candidate.mode !== 'string') return false;
+    return required.every(key => typeof candidate.vars[key] === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(candidate.vars[key]));
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if(event.key.toLowerCase() === 'o' && event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey){
+      event.preventDefault();
+      setPanelState(!isOpen);
+    }
+    if(event.key === 'Escape' && isOpen){
+      setPanelState(false);
+    }
+  });
+
+  closeButton.addEventListener('click', () => setPanelState(false));
+
+  colorInputs.forEach((input) => {
+    input.addEventListener('input', () => {
+      const key = input.dataset.var;
+      if(!key) return;
+      currentTheme.vars[key] = input.value;
+      applyTheme(currentTheme);
+      saveTheme();
+    });
+  });
+
+  resetButton.addEventListener('click', () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setTheme({ mode: DEFAULT_THEME.mode, vars:{ ...DEFAULT_THEME.vars } });
+  });
+
+  toggleDarkButton.addEventListener('click', () => {
+    const next = currentTheme.mode === 'dark'
+      ? { mode: DEFAULT_THEME.mode, vars:{ ...DEFAULT_THEME.vars } }
+      : { mode: DARK_THEME.mode, vars:{ ...DARK_THEME.vars } };
+    setTheme(next);
+  });
+
+  copyButton.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(currentTheme, null, 2));
+      alert('Theme JSON copied to clipboard.');
+    } catch {
+      alert('Copy failed.');
+    }
+  });
+
+  pasteButton.addEventListener('click', () => {
+    const raw = prompt('Paste theme JSON');
+    if(!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      if(!isValidTheme(parsed)) throw new Error('Invalid');
+      setTheme(parsed);
+    } catch {
+      alert('Invalid theme JSON.');
+    }
+  });
+
+  exportButton.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(currentTheme, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'paperbridge-theme.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  });
+})();
 </script>
 </body>
 </html>
