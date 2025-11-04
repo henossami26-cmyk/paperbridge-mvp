@@ -56,7 +56,7 @@
     .pad{padding:18px}
 
     label strong{display:block;margin-bottom:8px}
-    textarea, input[type="text"]{width:100%;border:1px solid var(--border);border-radius:10px;padding:12px;background:color-mix(in srgb, var(--card) 98%, transparent);color:var(--text);resize:vertical;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco,"Roboto Mono","Courier New",monospace;min-height:220px;box-sizing:border-box}
+    textarea, input[type="text"], input[type="password"], select {width:100%;border:1px solid var(--border);border-radius:10px;padding:12px;background:color-mix(in srgb, var(--card) 98%, transparent);color:var(--text);resize:vertical;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco,"Roboto Mono","Courier New",monospace;min-height:220px;box-sizing:border-box}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 
     button{border:none;border-radius:10px;background:var(--accent);color:var(--card);padding:8px 14px;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s;}
@@ -900,13 +900,19 @@
       setTimeout(buildGlossaryIndex, 200);
     })();
 
-    // AI rewrite: uses saved API key if present, else asks for proxy URL fallback
+    // AI rewrite: uses saved API key if present, else opens Theme panel and focuses API input (no confirm prompt)
     btnAI.addEventListener('click', async () => {
       const savedKey = localStorage.getItem('paperbridge:aiKey') || '';
       const proxy = localStorage.getItem('paperbridge:aiEndpoint') || '';
       if (!savedKey && !proxy) {
-        const open = confirm('No OpenAI API key or proxy configured. Paste your API key into Theme → OpenAI API key to enable one-click AI Rewrite, or configure a proxy. Open theme panel now?');
-        if (open) openPanel();
+        // Instead of an annoying confirm popup, open the Theme panel and focus the API key field.
+        openPanel();
+        // Focus aiKeyInput after the panel is visible
+        setTimeout(() => {
+          aiKeyInput.focus();
+          // visually hint the user with status pill
+          statusPill.textContent = 'Paste OpenAI API key in Theme to enable AI';
+        }, 180);
         return;
       }
 
