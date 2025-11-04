@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root{
+  --bg: #0f1224;
+  --card: #111427;
+  --text: #e3e6ef;
+  --accent: #4f46e5;
+}
+
+html, body, .card, .owner-panel {
+  transition: background 0.4s ease, color 0.4s ease;
+}
+
+.animate-fadeIn { animation: fadeIn .35s ease both; }
+@keyframes fadeIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0); } }
+
+.card { border-radius: 12px; padding: 16px; }
