@@ -4,189 +4,449 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>PaperBridge — Understand Every Form</title>
+  <meta name="description" content="PaperBridge helps you simplify, clarify, and humanize any document without leaving your browser." />
+  <meta property="og:title" content="PaperBridge — Understand Every Form">
+  <meta property="og:description" content="Simplify, clarify, and humanize any document with AI.">
+  <meta property="og:image" content="preview.png">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23111f4d'/%3E%3Cpath d='M14 38c8-10 18-15 32-12' stroke='%23a78bfa' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M14 28c8-10 18-15 32-12' stroke='%236dd3ff' stroke-width='6' stroke-linecap='round' fill='none' opacity='.75'/%3E%3Ccircle cx='18' cy='38' r='4' fill='%236dd3ff'/%3E%3Ccircle cx='46' cy='26' r='4' fill='%23a78bfa'/%3E%3C/svg%3E" />
 
-  <!-- Inter font -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
 
-  <!-- LZ-String (for share link compression and compressed glossary) -->
   <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
-  <!-- Mammoth for docx -> text -->
   <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
-  <!-- PDF.js for PDF text extraction -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
   <style>
-    :root{
-      --bg:#f7f7fb;
-      --card:#ffffff;
-      --text:#0f172a;
-      --accent:#0f62fe;
-      --border:#d7d7e6;
-      --pill-bg:#eef2ff;
-      --pill-border:#c7d2fe;
-      --muted: rgba(15,23,42,0.6);
-      --radius:14px;
-      --shadow: 0 12px 30px rgba(2,6,23,0.08);
-      --focus: rgba(79,70,229,0.18);
+    :root {
+      --bg:#0f172a;
+      --bg-2:#1b1f3b;
+      --card:rgba(15,23,42,0.65);
+      --text:#f1f5ff;
+      --accent:#8b5cf6;
+      --accent-soft:rgba(139,92,246,0.25);
+      --border:rgba(148,163,184,0.28);
+      --pill-bg:rgba(99,102,241,0.15);
+      --pill-border:rgba(129,140,248,0.38);
+      --muted:rgba(226,232,255,0.7);
+      --radius:16px;
+      --shadow:0 24px 80px rgba(15,23,42,0.45);
+      --focus:rgba(139,92,246,0.35);
+      --glow:#7dd3fc;
     }
-    :root[data-theme="dark"]{
-      --bg:#0f1224;
-      --card:#111427;
-      --text:#e3e6ef;
+    :root[data-theme="light"] {
+      --bg:#f6f7ff;
+      --bg-2:#e7ebff;
+      --card:rgba(255,255,255,0.72);
+      --text:#11142a;
       --accent:#4f46e5;
-      --border:#222745;
-      --pill-bg:#1f2440;
-      --pill-border:#2b3158;
-      --muted: rgba(227,230,239,0.68);
-      --shadow: 0 18px 40px rgba(2,6,23,0.45);
-      --focus: rgba(79,70,229,0.22);
+      --accent-soft:rgba(79,70,229,0.18);
+      --border:rgba(79,70,229,0.18);
+      --pill-bg:rgba(79,70,229,0.12);
+      --pill-border:rgba(129,140,248,0.42);
+      --muted:rgba(71,85,105,0.7);
+      --shadow:0 20px 60px rgba(15,23,42,0.18);
+      --focus:rgba(99,102,241,0.22);
+      --glow:#38bdf8;
     }
+    * { box-sizing:border-box; transition:background-color .4s,color .4s,border-color .4s,box-shadow .4s; }
+    html, body {
+      height:100%; margin:0;
+      font-family:'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background:var(--bg); color:var(--text); overflow-x:hidden; -webkit-font-smoothing:antialiased; position:relative;
+    }
+    body::before {
+      content:""; position:fixed; inset:0; z-index:-2;
+      background:radial-gradient(circle at 20% 20%, rgba(125,211,252,0.25), transparent 55%),
+                 radial-gradient(circle at 80% 10%, rgba(167,139,250,0.25), transparent 50%),
+                 radial-gradient(circle at 50% 80%, rgba(56,189,248,0.2), transparent 55%);
+      animation:aurora 18s ease-in-out infinite alternate;
+    }
+    @keyframes aurora { 0%{transform:translate3d(-2%,-1%,0) scale(1.03);} 50%{transform:translate3d(2%,1%,0) scale(1.08);} 100%{transform:translate3d(-1%,2%,0) scale(1.02);} }
 
-    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;box-sizing:border-box;transition:background .35s ease,color .35s ease;}
-    .wrap{max-width:1100px;margin:20px auto;padding:0 18px}
-    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-    h1{margin:0;font-size:26px}
-    .lead{margin:0;color:var(--muted);font-size:14px}
+    #particleCanvas { position:fixed; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; }
 
-    .grid{display:grid;grid-template-columns:1fr;gap:18px;margin-top:18px}
-    @media(min-width:980px){.grid{grid-template-columns:1fr 1fr}}
+    .floating-nav{
+      position:fixed; top:18px; left:50%; transform:translateX(-50%); width:min(1080px, calc(100% - 32px));
+      z-index:100; display:flex; align-items:center; justify-content:space-between; padding:12px 20px;
+      border-radius:999px; backdrop-filter:blur(18px); background:rgba(11,15,32,0.55);
+      border:1px solid rgba(148,163,184,0.22); box-shadow:0 24px 60px rgba(2,6,23,0.45);
+    }
+    .floating-nav .brand{ display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:.02em; }
+    .floating-nav .brand span.logo{ display:inline-flex; width:36px; height:36px; border-radius:50%; align-items:center; justify-content:center; background:linear-gradient(135deg, rgba(125,211,252,0.9), rgba(167,139,250,0.9)); color:#0f172a; font-weight:700; }
+    .floating-nav nav{ display:flex; gap:18px; }
+    .floating-nav a{ font-size:14px; text-decoration:none; color:var(--muted); padding:6px 12px; border-radius:999px; }
+    .floating-nav a.active,.floating-nav a:hover{ color:var(--text); background:rgba(99,102,241,0.15); }
+    .floating-nav .nav-actions{ display:flex; align-items:center; gap:10px; }
 
-    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
-    .pad{padding:18px}
+    .wrap{ width:min(1100px, 92vw); margin:0 auto; position:relative; }
+    .hero{ min-height:92vh; display:flex; align-items:center; justify-content:center; text-align:center; }
+    .hero-content{
+      padding:48px 38px; border-radius:32px; backdrop-filter:blur(28px);
+      background:linear-gradient(145deg, rgba(15,23,42,0.72), rgba(15,23,42,0.4));
+      border:1px solid rgba(148,163,184,0.18); box-shadow:0 30px 120px rgba(15,23,42,0.55);
+      max-width:780px; margin:120px auto 60px; position:relative; overflow:hidden;
+    }
+    .hero-content::after{ content:""; position:absolute; inset:0; background:radial-gradient(circle at 20% 20%, rgba(125,211,252,0.2), transparent 60%); pointer-events:none; }
+    .bridge-title{
+      font-family:'Playfair Display', serif; font-size:clamp(34px, 8vw, 68px); margin:0; letter-spacing:.02em; line-height:1.05;
+      display:flex; justify-content:center; gap:12px; flex-wrap:wrap;
+    }
+    .bridge-title span{ opacity:0; transform:translateY(18px); animation:bridgeReveal 1.8s ease forwards; }
+    .bridge-title span:nth-child(1){ animation-delay:0s; }
+    .bridge-title span:nth-child(2){ animation-delay:.18s; }
+    .bridge-title span:nth-child(3){ animation-delay:.36s; }
+    @keyframes bridgeReveal{ to{opacity:1; transform:translateY(0);} }
+    .tagline{ margin-top:18px; font-size:18px; color:var(--muted); }
+    .hero-video{ margin-top:32px; border-radius:24px; overflow:hidden; border:1px solid rgba(148,163,184,0.2); box-shadow:0 20px 80px rgba(15,23,42,0.45); position:relative; }
+    .hero-video::after{ content:"PaperBridge in motion"; position:absolute; bottom:12px; right:18px; padding:6px 14px; background:rgba(15,23,42,0.55); border-radius:999px; font-size:12px; color:var(--muted); border:1px solid rgba(148,163,184,0.2); }
+    video.loop-demo{ width:100%; max-height:320px; object-fit:cover; filter:saturate(1.15) brightness(1.05); }
 
-    label strong{display:block;margin-bottom:8px}
-    textarea, input[type="text"], input[type="password"], select {width:100%;border:1px solid var(--border);border-radius:10px;padding:12px;background:color-mix(in srgb, var(--card) 98%, transparent);color:var(--text);resize:vertical;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco,"Roboto Mono","Courier New",monospace;min-height:220px;box-sizing:border-box}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .cta-row{ margin-top:30px; display:flex; justify-content:center; gap:16px; flex-wrap:wrap; }
 
-    button{border:none;border-radius:10px;background:var(--accent);color:var(--card);padding:8px 14px;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s;}
-    button.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}
-    button.ghost{background:transparent;color:var(--muted);border-radius:8px;padding:6px 10px;border:1px solid transparent}
-    button:focus{outline:3px solid var(--focus);outline-offset:3px}
+    button{
+      border:none; border-radius:12px;
+      background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, var(--glow)));
+      color:#fff; padding:12px 20px; font-weight:600; cursor:pointer; box-shadow:0 18px 40px rgba(99,102,241,0.35);
+      transition:transform .2s, box-shadow .2s, background .4s;
+    }
+    button:hover{ transform:translateY(-2px); box-shadow:0 26px 60px rgba(99,102,241,0.38); }
+    button.secondary{ background:rgba(15,23,42,0.02); color:var(--text); border:1px solid var(--border); box-shadow:none; }
+    button.ghost{ background:transparent; color:var(--muted); border:1px solid transparent; box-shadow:none; }
+    .ai-btn{ background:linear-gradient(135deg,#06b6d4,#7c3aed); color:#fff; }
+    button.glow{ box-shadow:0 0 40px rgba(139,92,246,0.4); }
+    button:focus-visible{ outline:3px solid var(--focus); outline-offset:3px; }
 
-    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--pill-bg);color:var(--text);font-size:13px;border:1px solid var(--pill-border);margin-right:8px}
-    .out{background:var(--card);border-radius:12px;padding:12px;border:1px solid var(--border);min-height:120px;box-sizing:border-box}
-    .result-box{min-height:120px;padding:12px;border-radius:10px;border:1px solid var(--border);background:color-mix(in srgb,var(--card) 98%, transparent);overflow:auto}
-    mark.repl{background: color-mix(in srgb, var(--accent) 18%, transparent); padding:0 6px;border-radius:6px;cursor:pointer;color:inherit}
+    main{ position:relative; padding-bottom:160px; }
+    .section-title{ font-size:32px; margin:0 0 12px; letter-spacing:.02em; }
+    .section-lead{ margin:0 0 28px; color:var(--muted); font-size:16px; }
 
-    .fade-in{animation:fadeIn .36s ease both}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+    .glass-panel{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); backdrop-filter:blur(22px); box-shadow:var(--shadow); overflow:hidden; }
+    .glass-panel .pad{ padding:24px; }
 
-    .muted{color:var(--muted)}
-    footer{margin-top:18px;color:var(--muted);font-size:13px}
+    .layout-grid{ display:grid; grid-template-columns:1fr; gap:22px; }
+    @media(min-width:1020px){ .layout-grid{ grid-template-columns:1.05fr 1fr; } }
 
-    /* Theme control */
-    .gear{position:fixed;right:20px;bottom:20px;z-index:100;width:56px;height:56px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow);cursor:pointer}
-    .panel{position:fixed;right:20px;bottom:92px;z-index:110;width:420px;max-width:calc(100% - 32px);background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow);transform-origin:100% 100%;transition:transform .18s ease,opacity .16s ease}
-    .panel.hidden{opacity:0;transform:translateY(6px) scale(.98);pointer-events:none}
-    .panel .row{margin-top:8px}
-    .panel input[type="color"]{width:48px;height:32px;border:none;padding:0;background:none;cursor:pointer}
+    textarea, input[type="text"], input[type="password"], select{
+      width:100%; border:1px solid rgba(148,163,184,0.28); border-radius:16px; padding:16px;
+      background:color-mix(in srgb, var(--card) 88%, rgba(15,23,42,0.05)); color:var(--text); font-family:"Inter", system-ui;
+    }
+    textarea{ min-height:220px; resize:vertical; }
 
-    /* popover */
-    .popover{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9999;max-width:680px;width:92%;background:var(--card);border:1px solid var(--border);padding:16px;border-radius:10px;box-shadow:var(--shadow)}
-    .popover .close{position:absolute;right:8px;top:8px;border:none;background:transparent;color:var(--muted);cursor:pointer}
+    .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .pill{ display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:999px; background:var(--pill-bg); border:1px solid var(--pill-border); color:var(--text); font-size:13px; }
 
-    /* file input visually */
-    .fileRow{display:flex;gap:8px;align-items:center;margin-top:10px}
-    .fileRow input[type="file"]{border:1px dashed var(--border);padding:8px;border-radius:8px;background:transparent;color:var(--muted)}
+    .result-box{
+      min-height:160px; padding:18px; border-radius:18px; border:1px solid rgba(148,163,184,0.25);
+      background:rgba(15,23,42,0.25); overflow:auto; font-size:16px; line-height:1.6;
+    }
+    mark.repl{ background:linear-gradient(135deg, rgba(125,211,252,0.3), rgba(129,140,248,0.35)); border-radius:8px; padding:0 6px; cursor:pointer; }
 
-    /* ai button */
-    .ai-btn{background:linear-gradient(90deg,#06b6d4,#7c3aed);}
+    .out{ background:rgba(15,23,42,0.32); border-radius:24px; padding:18px; border:1px solid rgba(148,163,184,0.25); box-shadow:inset 0 0 0 1px rgba(148,163,184,0.15); }
 
-    /* mobile tweaks */
-    @media(max-width:480px){.pad{padding:12px}textarea{min-height:160px}}
+    ul.list{ list-style:none; padding:0; margin:0; }
+    ul.list li{ padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.2); background:rgba(15,23,42,0.18); margin-bottom:8px; }
+
+    footer{ margin-top:80px; color:var(--muted); text-align:center; font-size:13px; }
+
+    .status-stack{ display:flex; align-items:center; gap:8px; }
+    .visual-toggle{ display:flex; align-items:center; gap:8px; font-size:14px; color:var(--muted); }
+    .visual-board{ display:none; margin-top:18px; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; }
+    .visual-board.active{ display:grid; }
+    .visual-card{ padding:18px; border-radius:18px; background:rgba(15,23,42,0.32); border:1px solid rgba(148,163,184,0.2); box-shadow:0 20px 50px rgba(15,23,42,0.35); }
+
+    .gear{
+      position:fixed; right:20px; bottom:20px; z-index:120; width:56px; height:56px; border-radius:999px;
+      display:flex; align-items:center; justify-content:center; background:rgba(15,23,42,0.6);
+      border:1px solid rgba(148,163,184,0.25); box-shadow:0 24px 60px rgba(15,23,42,0.45); cursor:pointer;
+    }
+    .panel{
+      position:fixed; right:20px; bottom:92px; z-index:110; width:420px; max-width:calc(100% - 32px);
+      background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; box-shadow:var(--shadow);
+      transform-origin:100% 100%; transition:transform .2s, opacity .2s;
+    }
+    .panel.hidden{ opacity:0; transform:translateY(6px) scale(.96); pointer-events:none; }
+    .panel .row{ margin-top:8px; }
+    .panel input[type="color"]{ width:48px; height:32px; border:none; padding:0; background:none; cursor:pointer; }
+
+    .popover{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:150; max-width:680px; width:92%; background:var(--card); border:1px solid var(--border); padding:18px; border-radius:16px; box-shadow:var(--shadow); }
+    .popover .close{ position:absolute; right:8px; top:8px; border:none; background:transparent; color:var(--muted); cursor:pointer; }
+
+    .fileRow{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .fileRow input[type="file"]{ border:1px dashed rgba(148,163,184,0.35); padding:10px; border-radius:12px; background:rgba(15,23,42,0.2); color:var(--muted); }
+
+    .progress-overlay{ position:fixed; inset:0; background:rgba(7,10,20,0.72); backdrop-filter:blur(14px); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:200; opacity:0; pointer-events:none; transition:opacity .4s; }
+    .progress-overlay.active{ opacity:1; pointer-events:auto; }
+    .progress-box{ width:min(440px, 92vw); background:rgba(15,23,42,0.8); border-radius:22px; padding:28px; border:1px solid rgba(148,163,184,0.25); text-align:center; box-shadow:0 24px 80px rgba(15,23,42,0.6); }
+    .progress-bar{ height:6px; width:100%; border-radius:999px; background:rgba(148,163,184,0.18); overflow:hidden; margin-top:18px; }
+    .progress-bar span{ display:block; height:100%; width:0; background:linear-gradient(135deg, rgba(125,211,252,0.8), rgba(129,140,248,0.9)); transition:width .4s ease; }
+
+    .mascot{
+      position:fixed; bottom:28px; left:28px; max-width:260px; background:rgba(15,23,42,0.65);
+      border:1px solid rgba(148,163,184,0.22); border-radius:18px 18px 18px 6px; padding:16px 20px;
+      box-shadow:0 18px 60px rgba(15,23,42,0.45); display:flex; gap:12px; align-items:flex-start; z-index:90;
+    }
+    .mascot .avatar{ font-size:22px; }
+    .mascot.bounce{ animation:mascotBounce .8s ease; }
+    @keyframes mascotBounce{ 0%{transform:translateY(0);} 30%{transform:translateY(-6px);} 60%{transform:translateY(2px);} 100%{transform:translateY(0);} }
+
+    .term-tooltip{
+      position:fixed; padding:12px 16px; background:rgba(15,23,42,0.85); border:1px solid rgba(148,163,184,0.28);
+      color:var(--text); border-radius:12px; font-size:13px; max-width:260px; pointer-events:none;
+      opacity:0; transform:translateY(6px); transition:opacity .25s, transform .25s; z-index:150;
+    }
+    .term-tooltip.visible{ opacity:1; transform:translateY(0); }
+
+    .themes-grid{ display:grid; gap:18px; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); margin-top:32px; }
+    .theme-card{ padding:18px; border-radius:18px; border:1px solid rgba(148,163,184,0.2); background:rgba(15,23,42,0.25); }
+    .quote{ margin-top:80px; font-family:'Playfair Display', serif; font-size:24px; color:var(--muted); text-align:center; }
+    audio{ display:none; }
+
+    .fade-in { animation:fadeIn .4s ease both; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px);} to { opacity:1; transform:translateY(0); } }
+    .bridge-flow { animation:bridgeFlow .6s ease; }
+    @keyframes bridgeFlow { from { box-shadow:0 0 0 rgba(125,211,252,0); transform:translateX(0);} 50% { box-shadow:0 0 30px rgba(125,211,252,0.35); transform:translateX(6px);} to { box-shadow:0 0 0 rgba(125,211,252,0); transform:translateX(0);} }
+
+    @media(max-width:720px){
+      .floating-nav{ gap:10px; padding:10px 16px; }
+      .floating-nav nav{ display:none; }
+      .hero-content{ padding:38px 22px; }
+      .layout-grid{ grid-template-columns:1fr; }
+      .mascot{ left:50%; transform:translateX(-50%); bottom:20px; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap" id="appRoot">
-    <header>
-      <div>
-        <h1>🌉 PaperBridge — Understand Every Form</h1>
-        <p class="lead">Client-only demo — everything runs in your browser. Upload documents, choose reading-level presets, and simplify securely on-device.</p>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <div class="pill" id="statusPill">Ready</div>
-        <button id="openTheme" aria-label="Open theme controls" class="secondary">Theme</button>
-      </div>
-    </header>
+  <canvas id="particleCanvas" aria-hidden="true"></canvas>
 
-    <main class="grid" role="main">
-      <!-- Left: input & controls -->
-      <section class="card">
-        <div class="pad">
-          <label><strong>Paste or upload form text</strong></label>
-          <textarea id="input" aria-label="Paste form text">By signing this form, the applicant hereby consents to disclose their SIN pursuant to the program assessment. Notwithstanding any other provision herein, failure to remit sufficient documentation may render the application void.</textarea>
+  <header class="floating-nav" id="topNav">
+    <div class="brand">
+      <span class="logo">🌉</span>
+      <span>PaperBridge</span>
+    </div>
+    <nav aria-label="Primary">
+      <a href="#home" class="active">Home</a>
+      <a href="#simplify">Simplify</a>
+      <a href="#themes">Themes</a>
+      <a href="#learn">Learn</a>
+      <a href="#about">About</a>
+    </nav>
+    <div class="nav-actions">
+      <button id="audioToggle" class="ghost" aria-pressed="false">🎧 Lo-fi off</button>
+      <button id="openTheme" class="secondary">Theme Lab</button>
+    </div>
+  </header>
 
-          <div class="fileRow">
-            <input id="fileInput" type="file" accept=".txt,.md,.json,.docx,.pdf" aria-label="Upload text file (.txt, .md, .json, .docx, .pdf)">
-            <div class="muted">Upload .txt/.md/.docx/.pdf. JSON merges to glossary if formatted as term→{simple,note}.</div>
-          </div>
+  <main>
+    <section id="home" class="hero">
+      <div class="hero-content">
+        <h1 class="bridge-title"><span>Paper</span><span>Bridge</span><span>Where language meets clarity.</span></h1>
+        <p class="tagline">Simplify any document. Understand everything. A calm space for turning complex forms into human language.</p>
 
-          <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
-            <input id="glossaryUpload" type="file" accept=".json" aria-label="Upload glossary JSON" />
-            <button id="btnMergeGlossary" class="ghost">Merge glossary</button>
-            <div class="muted" style="font-size:13px">Upload a glossary JSON (term → {simple,note}) to expand definitions.</div>
-          </div>
-
-          <div class="row" style="justify-content:space-between;margin-top:12px;">
-            <div style="display:flex;gap:8px;align-items:center">
-              <button id="btnSimplify">Simplify</button>
-              <button id="btnLine" class="secondary">Line-by-line</button>
-              <button id="btnCopy" class="ghost">Copy simplified</button>
-              <button id="btnAI" class="ai-btn" title="AI-assisted rewrite">AI Rewrite</button>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center">
-              <span class="pill" id="modePill">Mode: Simple</span>
-              <span class="pill" id="termPill">Terms: 0</span>
-            </div>
-          </div>
-
-          <div class="row" style="margin-top:12px;align-items:center">
-            <label class="muted" style="margin-right:6px">Preset</label>
-            <select id="presetSelect" aria-label="Simplify preset">
-              <option value="eli5">Explain like I'm 5 (ELI5)</option>
-              <option value="5">5 year old</option>
-              <option value="10">10 year old</option>
-              <option value="teen">Teenager</option>
-              <option value="adult">Adult (Plain)</option>
-              <option value="legal">Legal (Keep meaning)</option>
-            </select>
-
-            <label class="muted" style="margin-left:12px">Difficulty</label>
-            <input id="difficulty" type="range" min="1" max="3" step="1" value="1" aria-label="Difficulty slider" />
-            <div id="diffLabel" class="muted" style="min-width:80px;text-align:right">Simple</div>
-          </div>
-
-          <div class="row" style="margin-top:12px">
-            <button id="btnTxt" class="ghost">Download .txt</button>
-            <button id="btnPdf" class="ghost">Download .pdf</button>
-            <button id="btnShare" class="ghost">Copy share link</button>
-            <button id="btnClear" class="ghost" style="color:var(--muted)">Clear</button>
-          </div>
-
-          <div style="margin-top:12px" class="muted">Tip: For best results upload plain text or .docx. Large glossaries can be uploaded to expand term definitions.</div>
+        <div class="cta-row">
+          <button class="glow" onclick="document.querySelector('#simplify').scrollIntoView({behavior:'smooth'});">Start simplifying</button>
+          <button class="secondary" onclick="document.querySelector('#learn').scrollIntoView({behavior:'smooth'});">Why clarity matters</button>
         </div>
-      </section>
 
-      <!-- Right: output & glossary -->
-      <section class="card" aria-labelledby="outputHeading">
+        <div class="hero-video" aria-hidden="true">
+          <video class="loop-demo" autoplay muted loop playsinline>
+            <source src="https://storage.googleapis.com/coverr-main/mp4/Mt_Baker.mp4" type="video/mp4" />
+          </video>
+        </div>
+      </div>
+    </section>
+
+    <section id="simplify" class="wrap" aria-labelledby="simplifyTitle">
+      <div class="glass-panel">
         <div class="pad">
-          <div class="out">
-            <div id="output" class="result-box" role="region" aria-live="polite" tabindex="0"></div>
+          <div class="status-stack">
+            <div class="pill" id="statusPill">Ready</div>
+            <div class="pill" id="modePill">Mode: Simple</div>
+            <div class="pill" id="termPill">Terms: 0</div>
           </div>
 
-          <h3 id="outputHeading" style="margin-top:14px">Glossary</h3>
-          <ul id="glossary" class="list" aria-live="polite">
-            <li><small class="muted">No special terms detected.</small></li>
-          </ul>
-        </div>
-      </section>
-    </main>
+          <h2 class="section-title" id="simplifyTitle">Simplify with confidence</h2>
+          <p class="section-lead">Upload or paste any document. Watch as the dense text gently flows across the PaperBridge.</p>
 
-    <footer>Accessibility: focus visible • Contrast tuned • Runs fully offline once loaded</footer>
+          <div class="layout-grid">
+            <section class="glass-panel" style="background:rgba(15,23,42,0.4);">
+              <div class="pad">
+                <label><strong>Paste or upload form text</strong></label>
+                <textarea id="input" aria-label="Paste form text">By signing this form, the applicant hereby consents to disclose their SIN pursuant to the program assessment. Notwithstanding any other provision herein, failure to remit sufficient documentation may render the application void.</textarea>
+
+                <div class="fileRow row" style="margin-top:12px;">
+                  <input id="fileInput" type="file" accept=".txt,.md,.json,.docx,.pdf" aria-label="Upload text file (.txt, .md, .json, .docx, .pdf)">
+                  <div class="muted">Upload .txt/.md/.docx/.pdf. JSON merges to glossary if formatted as term → {simple,note}.</div>
+                </div>
+
+                <div class="row" style="margin-top:12px;">
+                  <input id="glossaryUpload" type="file" accept=".json" aria-label="Upload glossary JSON" />
+                  <button id="btnMergeGlossary" class="ghost">Merge glossary</button>
+                  <div class="muted" style="font-size:13px">Expand your term library instantly.</div>
+                </div>
+
+                <div class="row" style="margin-top:16px; justify-content:space-between;">
+                  <div class="row">
+                    <button id="btnSimplify">Simplify</button>
+                    <button id="btnLine" class="secondary">Line-by-line</button>
+                    <button id="btnCopy" class="ghost">Copy simplified</button>
+                    <button id="btnAI" class="ai-btn" title="AI-assisted rewrite">AI Rewrite</button>
+                    <button id="btnReadAloud" class="ghost">🔊 Read aloud</button>
+                  </div>
+                  <div class="row">
+                    <label class="muted" style="font-size:13px">Tone</label>
+                    <select id="toneSelect" aria-label="Tone select" style="min-width:160px;">
+                      <option value="plain">Plain-English</option>
+                      <option value="professional">Professional</option>
+                      <option value="casual">Casual</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="row" style="margin-top:16px;">
+                  <label class="muted" style="margin-right:6px">Preset</label>
+                  <select id="presetSelect" aria-label="Simplify preset">
+                    <option value="eli5">Explain like I'm 5 (ELI5)</option>
+                    <option value="5">5 year old</option>
+                    <option value="10">10 year old</option>
+                    <option value="teen">Teenager</option>
+                    <option value="adult">Adult (Plain)</option>
+                    <option value="legal">Legal (Keep meaning)</option>
+                  </select>
+
+                  <label class="muted" style="margin-left:12px">Difficulty</label>
+                  <input id="difficulty" type="range" min="1" max="3" step="1" value="1" aria-label="Difficulty slider" />
+                  <div id="diffLabel" class="muted" style="min-width:80px;text-align:right">Simple</div>
+                </div>
+
+                <div class="row" style="margin-top:16px;">
+                  <button id="btnTxt" class="ghost">Download .txt</button>
+                  <button id="btnPdf" class="ghost">Download .pdf</button>
+                  <button id="btnShare" class="ghost">Copy share link</button>
+                  <button id="btnClear" class="ghost" style="color:var(--muted)">Clear</button>
+                  <button id="visualToggle" class="ghost">🖼️ Visual mode</button>
+                  <button id="btnSurprise" class="ghost">🎲 Surprise me</button>
+                </div>
+
+                <div style="margin-top:12px" class="muted">Tip: Toggle visual mode to see summaries as cards. Tone lets you guide the personality of the rewrite.</div>
+              </div>
+            </section>
+
+            <section class="glass-panel" aria-labelledby="outputHeading" style="background:rgba(15,23,42,0.4);">
+              <div class="pad">
+                <div class="out" id="outputShell">
+                  <div id="output" class="result-box" role="region" aria-live="polite" tabindex="0"></div>
+                </div>
+
+                <div class="visual-toggle" style="margin-top:18px;">
+                  <span>Visual summary</span>
+                  <span class="muted">(cards appear when Visual mode is active)</span>
+                </div>
+                <div id="visualContainer" class="visual-board" aria-live="polite"></div>
+
+                <h3 id="outputHeading" style="margin-top:24px">Glossary</h3>
+                <ul id="glossary" class="list" aria-live="polite">
+                  <li><small class="muted">No special terms detected.</small></li>
+                </ul>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="themes" class="wrap" style="margin-top:120px;">
+      <div class="glass-panel">
+        <div class="pad">
+          <h2 class="section-title">Theme laboratory</h2>
+          <p class="section-lead">Craft moods for PaperBridge. Save presets, export them, or let the bridge surprise you.</p>
+          <div class="row" style="margin-bottom:16px;">
+            <button data-theme-preset="ocean" class="ghost">🌊 Ocean</button>
+            <button data-theme-preset="minimal" class="ghost">🧘 Minimalist</button>
+            <button data-theme-preset="sunset" class="ghost">🌅 Paper Sunset</button>
+            <button data-theme-preset="cyber" class="ghost">🪩 Cyber Mode</button>
+            <button id="themeRandom" class="ghost">🎲 Surprise theme</button>
+          </div>
+          <div class="row" style="margin-bottom:16px;">
+            <input id="themeName" type="text" placeholder="Name your theme" style="flex:1;" />
+            <button id="themeSave" class="secondary">Save theme</button>
+          </div>
+          <ul id="savedThemes" class="list"></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="learn" class="wrap" style="margin-top:120px;">
+      <div class="glass-panel">
+        <div class="pad">
+          <h2 class="section-title">Learn why plain language matters</h2>
+          <p class="section-lead">Clarity is access. PaperBridge keeps the human on the other side of every document in mind.</p>
+          <div class="themes-grid">
+            <div class="theme-card">
+              <strong>Accessibility first</strong>
+              <p class="muted">Plain language means fewer barriers for people learning a language, folks with cognitive differences, and anyone under deadline.</p>
+            </div>
+            <div class="theme-card">
+              <strong>Trust through understanding</strong>
+              <p class="muted">Transparent documents build trust. PaperBridge highlights tricky phrases so you can explain them in seconds.</p>
+            </div>
+            <div class="theme-card">
+              <strong>Team-friendly summaries</strong>
+              <p class="muted">Share visual cards or tone-adjusted rewrites that match the audience — from legal counsel to a neighbour.</p>
+            </div>
+            <div class="theme-card">
+              <strong>Future AI magic</strong>
+              <p class="muted">Add GPT-powered simplification, summarise long pages, or read the result aloud. The bridge is ready.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="about" class="wrap" style="margin-top:120px;">
+      <div class="glass-panel">
+        <div class="pad">
+          <h2 class="section-title">Our vision</h2>
+          <p class="section-lead">PaperBridge is a promise: bureaucracy without the headache. We build for clarity, empathy, and delight.</p>
+          <div class="themes-grid">
+            <div class="theme-card">
+              <strong>Human understanding layers</strong>
+              <p class="muted">Hover to define complex language, adjust tone for any audience, or flip into visual mode. Every interaction says “we get you”.</p>
+            </div>
+            <div class="theme-card">
+              <strong>Mascot guidance</strong>
+              <p class="muted">Our origami bird shares encouragement, tips, and gentle nudges toward clarity.</p>
+            </div>
+            <div class="theme-card">
+              <strong>Shareable themes</strong>
+              <p class="muted">Create looks that feel like your organisation and export them as .theme files for your team.</p>
+            </div>
+          </div>
+          <p class="quote">“Understanding is the real signature on every form.”</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>Accessibility: focus visible • Contrast tuned • Runs fully offline once loaded • 🌙 Night shift ready</footer>
+  </main>
+
+  <div class="progress-overlay" id="progressOverlay" role="alert" aria-live="assertive">
+    <div class="progress-box">
+      <div id="progressText">Bridging complexity…</div>
+      <div class="progress-bar"><span id="progressBar"></span></div>
+    </div>
   </div>
 
-  <!-- gear + theme panel -->
+  <div class="mascot" id="mascotBubble" role="status" aria-live="polite">
+    <div class="avatar">🪶</div>
+    <div>
+      <strong>PaperBird</strong>
+      <p id="mascotText" class="muted" style="margin:6px 0 0 0;">Welcome! Drop any document and I’ll help you glide to clarity.</p>
+    </div>
+  </div>
+
+  <div class="term-tooltip" id="termTooltip" role="tooltip"></div>
+
   <div class="gear" id="gear" title="Open theme panel">⚙️</div>
 
   <div class="panel hidden" id="themePanel" role="dialog" aria-modal="true" aria-hidden="true">
@@ -213,6 +473,7 @@
     <div style="display:flex;gap:8px;margin-top:12px">
       <button id="themeReset" class="secondary">Reset</button>
       <button id="themeDark" class="">Dark</button>
+      <button id="themeLight" class="ghost">Light</button>
     </div>
 
     <div style="margin-top:10px">
@@ -243,7 +504,6 @@
     <small class="muted" style="display:block;margin-top:8px">Changes saved to localStorage. Use compressed glossary files with LZ-String for faster loads.</small>
   </div>
 
-  <!-- popover template -->
   <template id="popoverTpl">
     <div class="popover" role="dialog" aria-modal="true">
       <button class="close" aria-label="Close">✕</button>
@@ -252,9 +512,12 @@
     </div>
   </template>
 
+  <audio id="lofi" loop>
+    <source src="https://cdn.pixabay.com/download/audio/2023/09/27/audio_8f2e580dd2.mp3?filename=lofi-study-158436.mp3" type="audio/mpeg">
+  </audio>
+
   <script>
   (function(){
-    // Elements
     const inputEl = document.getElementById('input');
     const fileInput = document.getElementById('fileInput');
     const glossaryUpload = document.getElementById('glossaryUpload');
@@ -274,12 +537,34 @@
     const termPill = document.getElementById('termPill');
     const statusPill = document.getElementById('statusPill');
     const presetSelect = document.getElementById('presetSelect');
+    const toneSelect = document.getElementById('toneSelect');
+    const visualToggle = document.getElementById('visualToggle');
+    const visualContainer = document.getElementById('visualContainer');
+    const outputShell = document.getElementById('outputShell');
+    const progressOverlay = document.getElementById('progressOverlay');
+    const progressText = document.getElementById('progressText');
+    const progressBar = document.getElementById('progressBar');
+    const mascotBubble = document.getElementById('mascotBubble');
+    const mascotText = document.getElementById('mascotText');
+    const btnReadAloud = document.getElementById('btnReadAloud');
+    const audioToggle = document.getElementById('audioToggle');
+    const surpriseBtn = document.getElementById('btnSurprise');
+    const lofi = document.getElementById('lofi');
+    const heroTitle = document.querySelector('.bridge-title');
+    const navLinks = document.querySelectorAll('.floating-nav a');
+    const themePresetButtons = document.querySelectorAll('[data-theme-preset]');
+    const themeRandom = document.getElementById('themeRandom');
+    const themeNameInput = document.getElementById('themeName');
+    const themeSaveBtn = document.getElementById('themeSave');
+    const savedThemeList = document.getElementById('savedThemes');
+    const termTooltip = document.getElementById('termTooltip');
 
     const gear = document.getElementById('gear');
     const themePanel = document.getElementById('themePanel');
     const themeClose = document.getElementById('themeClose');
     const themeReset = document.getElementById('themeReset');
     const themeDark = document.getElementById('themeDark');
+    const themeLight = document.getElementById('themeLight');
     const themeCopy = document.getElementById('themeCopy');
     const themePaste = document.getElementById('themePaste');
     const themeExport = document.getElementById('themeExport');
@@ -292,7 +577,6 @@
     const colorInputs = Array.from(document.querySelectorAll('#themePanel input[type="color"]'));
     const popoverTpl = document.getElementById('popoverTpl');
 
-    // worker for indexing glossary
     const workerCode = `
       self.onmessage = function(ev) {
         const { type, glossary } = ev.data;
@@ -322,7 +606,6 @@
       }
     };
 
-    // Local fallback glossary (small sample). The full-large glossary is loaded lazily if provided.
     const FALLBACK_GLOSSARY = {
       "applicant":{"simple":"person applying","note":"the person using the form"},
       "hereby":{"simple":"now","note":"formal word often used by the document"},
@@ -334,7 +617,6 @@
 
     const LARGE_GLOSSARY = Object.assign({}, FALLBACK_GLOSSARY);
 
-    // attempt to load user-configured external glossary (LZ-String compressed)
     function fetchAndLoadExternalGlossary(url) {
       if (!url) return Promise.reject(new Error('No URL'));
       statusPill.textContent = 'Loading external glossary…';
@@ -343,12 +625,10 @@
         return r.text();
       }).then(txt => {
         let decompressed;
-        try {
-          // If the file itself is compressed by LZ, it will be a compressed string
-          decompressed = LZString.decompressFromEncodedURIComponent(txt.trim()) || txt;
-        } catch (e) { decompressed = txt; }
+        try { decompressed = LZString.decompressFromEncodedURIComponent(txt.trim()) || txt; }
+        catch { decompressed = txt; }
         let parsed;
-        try { parsed = JSON.parse(decompressed); } catch (e) { parsed = null; }
+        try { parsed = JSON.parse(decompressed); } catch { parsed = null; }
         if (!parsed) throw new Error('Invalid or unparsable glossary JSON');
         Object.assign(LARGE_GLOSSARY, parsed);
         buildGlossaryIndex();
@@ -362,27 +642,13 @@
       glossaryWorker.postMessage({ type: 'build', glossary: LARGE_GLOSSARY });
     }
 
-    // Utility safe DOM
     function appendText(el, text) { el.appendChild(document.createTextNode(text)); }
     function clearChildren(el){ while (el.firstChild) el.removeChild(el.firstChild); }
-    function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&'); }
+    function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
     function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-    // PRESET vocab maps
     const PRESET_VOCAB = {
-      eli5: {
-        "applicant":"person applying",
-        "pursuant to":"because of",
-        "hereby":"now",
-        "notwithstanding":"even though",
-        "remit":"send",
-        "void":"not valid",
-        "consents":"says yes",
-        "documentation":"papers",
-        "failure":"if you don't",
-        "assessment":"check",
-        "SIN":"Social Insurance Number (SIN)"
-      },
+      eli5: { "applicant":"person applying","pursuant to":"because of","hereby":"now","notwithstanding":"even though","remit":"send","void":"not valid","consents":"says yes","documentation":"papers","failure":"if you don't","assessment":"check","SIN":"Social Insurance Number (SIN)" },
       "5": {},
       "10": { "consents":"agrees", "documentation":"documents", "assessment":"review" },
       teen: { "consents":"agrees", "documentation":"documents", "remit":"submit" },
@@ -390,7 +656,6 @@
       legal: {}
     };
 
-    // expanded base patterns — medium & strong add more replacements
     function getBasePatterns(level) {
       const base = [
         { find: /\bpursuant to\b/gi, replace: level === 3 ? 'according to' : 'under' },
@@ -416,24 +681,9 @@
       return base;
     }
 
-    function applyPatterns(text, patterns) {
-      let out = text;
-      const hits = [];
-      for (const p of patterns) {
-        out = out.replace(p.find, (match) => {
-          hits.push(match);
-          return typeof p.replace === 'function' ? p.replace(match) : p.replace;
-        });
-      }
-      return { out, hits };
-    }
-
-    function applyPresetVocab(text, preset) {
-      const key = (preset === '5') ? 'eli5' : preset;
-      const mapping = PRESET_VOCAB[key] || {};
-      if (!Object.keys(mapping).length) return { text, hits: [] };
-      let out = text;
-      const hits = [];
+    function applyPresetVocab(text, presetKey) {
+      const mapping = PRESET_VOCAB[presetKey] || {};
+      let out = text, hits = [];
       const keys = Object.keys(mapping).sort((a,b)=>b.length-a.length);
       for (const k of keys) {
         const re = new RegExp('\\b' + escapeRegExp(k) + '\\b','gi');
@@ -459,7 +709,18 @@
       return outParts.join(' ');
     }
 
-    function simplifyForPreset(inputText, presetKey, difficultyLevel) {
+    function applyTone(text, tone) {
+      if (!text) return text;
+      if (tone === 'professional') {
+        return text.replace(/\bwe\b/gi, 'PaperBridge').replace(/!+/g, '.').replace(/\bokay\b/gi, 'acceptable');
+      }
+      if (tone === 'casual') {
+        return text.replace(/\bshall\b/gi, 'will').replace(/\bmust\b/gi, 'need to').replace(/\bprovide\b/gi, 'share');
+      }
+      return text;
+    }
+
+    function simplifyForPreset(inputText, presetKey, difficultyLevel, tone) {
       let text = inputText || '';
       const patterns = getBasePatterns(difficultyLevel);
       const base = applyPatterns(text, patterns);
@@ -467,8 +728,17 @@
       const pv = applyPresetVocab(text, presetKey);
       text = pv.text;
       text = sentenceSimplify(text, presetKey === '5' ? 'eli5' : presetKey);
+      text = applyTone(text, tone || 'plain');
       const hits = base.hits.concat(pv.hits);
       return { simplified: text, hits };
+    }
+
+    function applyPatterns(text, patterns){
+      let out = text, hits = [];
+      for (const p of patterns) {
+        out = out.replace(p.find, (m)=>{ hits.push(m); return p.replace; });
+      }
+      return { out, hits };
     }
 
     function highlightNodes(text, hits) {
@@ -485,6 +755,8 @@
         mark.dataset.term = m[0];
         mark.title = 'Click to explain';
         mark.addEventListener('click', () => explainTerm(m[0]));
+        mark.addEventListener('mouseenter', (ev) => showTermTooltip(ev, m[0]));
+        mark.addEventListener('mouseleave', hideTermTooltip);
         mark.appendChild(document.createTextNode(m[0]));
         fragment.appendChild(mark);
         last = regex.lastIndex;
@@ -515,14 +787,12 @@
         return;
       }
       for (const t of terms) {
-        const li = document.createElement('li');
-        const strong = document.createElement('strong');
-        appendText(strong, t);
-        li.appendChild(strong);
         const def = (glossaryIndex && glossaryIndex[t]) ? glossaryIndex[t] : (LARGE_GLOSSARY[t] || null);
-        const div = document.createElement('div');
-        div.style.marginTop = '6px';
+        const li = document.createElement('li');
+        const title = document.createElement('strong'); appendText(title, t);
+        const div = document.createElement('div'); div.style.marginTop = '6px';
         appendText(div, def ? def.simple : '(no local definition)');
+        li.appendChild(title);
         li.appendChild(div);
         if (def && def.note) {
           const note = document.createElement('small');
@@ -547,6 +817,7 @@
       document.body.appendChild(pop);
       pop.querySelector('.close').focus();
     }
+
     function explainTerm(term) {
       const key = term.toLowerCase();
       const def = (glossaryIndex && glossaryIndex[key]) ? glossaryIndex[key] : (LARGE_GLOSSARY[key] || null);
@@ -554,23 +825,90 @@
       else showPopover(term, 'No local definition found. Upload or paste a glossary JSON to merge more definitions.');
     }
 
-    // core actions
+    function showTermTooltip(ev, term) {
+      const key = term.toLowerCase();
+      const def = (glossaryIndex && glossaryIndex[key]) ? glossaryIndex[key] : (LARGE_GLOSSARY[key] || null);
+      termTooltip.textContent = def ? (def.simple + (def.note ? '\n' + def.note : '')) : 'No local definition yet.';
+      termTooltip.classList.add('visible');
+      positionTooltip(ev);
+    }
+    function hideTermTooltip() { termTooltip.classList.remove('visible'); }
+    function positionTooltip(ev) {
+      const rect = termTooltip.getBoundingClientRect();
+      let x = ev.clientX + 12, y = ev.clientY + 16;
+      if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width - 12;
+      if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 12;
+      termTooltip.style.left = x + 'px'; termTooltip.style.top = y + 'px';
+    }
+    document.addEventListener('mousemove', (ev) => {
+      if (termTooltip.classList.contains('visible')) positionTooltip(ev);
+    });
+
+    function renderVisualSummary(text) {
+      if (!visualContainer.classList.contains('active')) return;
+      clearChildren(visualContainer);
+      const sentences = text.split(/(?<=[.!?])/).map(s => s.trim()).filter(Boolean);
+      sentences.forEach((sentence, idx) => {
+        const card = document.createElement('div');
+        card.className = 'visual-card fade-in';
+        const title = document.createElement('strong'); appendText(title, `Span ${idx + 1}`);
+        const p = document.createElement('p'); p.className = 'muted'; appendText(p, sentence);
+        card.appendChild(title); card.appendChild(p); visualContainer.appendChild(card);
+      });
+    }
+
+    function friendlyMessage(message) {
+      mascotText.textContent = message;
+      mascotBubble.classList.add('bounce');
+      setTimeout(() => mascotBubble.classList.remove('bounce'), 800);
+    }
+
+    function summarizeAndRender(mode) {
+      outputShell.classList.add('bridge-flow');
+      setTimeout(() => outputShell.classList.remove('bridge-flow'), 600);
+      if (mode === 'line') return simplifyLineByLine();
+      return simplifyAll(mode);
+    }
+
+    function runSimplifyFlow(mode='simple') {
+      const messages = ['Bridging complexity…','Translating…','Clarity ahead 🚀'];
+      progressOverlay.classList.add('active');
+      let step = 0;
+      const advance = () => {
+        if (step < messages.length) {
+          progressText.textContent = messages[step];
+          progressBar.style.width = ((step+1)/messages.length*100) + '%';
+          step++;
+          setTimeout(advance, 420);
+        } else {
+          summarizeAndRender(mode);
+          setTimeout(() => {
+            progressOverlay.classList.remove('active');
+            progressBar.style.width = '0%';
+          }, 320);
+        }
+      };
+      advance();
+    }
+
     function simplifyAll(mode='simple') {
       const raw = inputEl.value || '';
       const preset = presetSelect.value;
       const lvl = parseInt(difficulty.value, 10) || 1;
       const presetKey = (preset === '5') ? 'eli5' : preset;
-      const { simplified, hits } = simplifyForPreset(raw, presetKey, lvl);
+      const tone = toneSelect.value;
+      const { simplified, hits } = simplifyForPreset(raw, presetKey, lvl, tone);
       const detected = renderResult(simplified, hits);
+      renderVisualSummary(simplified);
       renderGlossary(detected);
-      modePill.textContent = `Mode: ${mode === 'simple' ? 'Simple' : (mode === 'line' ? 'Line-by-line' : 'Simple')}`;
+      modePill.textContent = `Mode: ${mode === 'simple' ? 'Simple' : (mode === 'line' ? 'Line-by-line' : mode)}`;
       termPill.textContent = `Terms: ${detected.length}`;
       statusPill.textContent = 'Simplified';
+      friendlyMessage('✅ Done! You just turned legalese into human.');
       return { raw, simplified, detected, hits };
     }
 
-    // line-by-line
-    btnLine.addEventListener('click', () => {
+    function simplifyLineByLine() {
       const raw = inputEl.value || '';
       const sentences = raw.match(/[^.!?]+[.!?]*/g) || [raw];
       clearChildren(outputEl);
@@ -578,14 +916,15 @@
       const preset = presetSelect.value;
       const presetKey = (preset === '5') ? 'eli5' : preset;
       const lvl = parseInt(difficulty.value,10) || 1;
+      const tone = toneSelect.value;
       sentences.forEach(s => {
         const block = document.createElement('div');
-        block.style.marginBottom = '12px';
+        block.style.marginBottom = '18px';
         const smallO = document.createElement('small'); smallO.className = 'muted'; appendText(smallO,'Original');
         const orig = document.createElement('div'); appendText(orig, s.trim());
         const smallS = document.createElement('small'); smallS.className = 'muted'; smallS.style.marginTop='6px'; appendText(smallS,'Simplified');
         const simpWrap = document.createElement('div'); simpWrap.style.marginTop='6px';
-        const { simplified, hits } = simplifyForPreset(s, presetKey, lvl);
+        const { simplified, hits } = simplifyForPreset(s, presetKey, lvl, tone);
         const nodes = highlightNodes(simplified, hits);
         nodes.forEach(n => simpWrap.appendChild(n));
         block.appendChild(smallO); block.appendChild(orig); block.appendChild(smallS); block.appendChild(simpWrap);
@@ -593,19 +932,22 @@
         allHits = allHits.concat(hits);
       });
       const detected = Array.from(new Set(allHits.map(h => h.toLowerCase().trim())));
+      renderVisualSummary(raw);
       renderGlossary(detected);
       modePill.textContent = 'Mode: Line-by-line';
       termPill.textContent = `Terms: ${detected.length}`;
       statusPill.textContent = 'Line-by-line view';
-    });
+      friendlyMessage('🔍 Each sentence now has a twin across the bridge.');
+      return { raw, simplified: raw, detected, hits: allHits };
+    }
 
-    btnSimplify.addEventListener('click', () => simplifyAll('simple'));
+    btnSimplify.addEventListener('click', () => runSimplifyFlow('simple'));
+    btnLine.addEventListener('click', () => runSimplifyFlow('line'));
     btnCopy.addEventListener('click', async () => {
       const r = simplifyAll();
       try { await navigator.clipboard.writeText(r.simplified); alert('Copied simplified text.'); } catch { alert('Could not copy.'); }
     });
 
-    // download txt
     btnTxt.addEventListener('click', () => {
       const r = simplifyAll();
       const blob = new Blob([r.simplified], { type: 'text/plain;charset=utf-8' });
@@ -613,7 +955,6 @@
       const a = document.createElement('a'); a.href = url; a.download = 'paperbridge-simplified.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     });
 
-    // print-to-pdf
     btnPdf.addEventListener('click', () => {
       const r = simplifyAll();
       const w = window.open('', '_blank', 'noopener');
@@ -621,15 +962,11 @@
       const doc = w.document;
       doc.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PaperBridge — PDF</title>');
       doc.write('<style>body{font-family:Inter,system-ui,Arial;color:#111;margin:28px}pre{white-space:pre-wrap;font-family:inherit;font-size:14px}h1{font-size:18px;margin-bottom:8px}</style>');
-      doc.write('</head><body>');
-      doc.write('<h1>PaperBridge — Simplified</h1>');
-      doc.write('<pre>' + escapeHtml(r.simplified) + '</pre>');
-      doc.write('</body></html>');
+      doc.write('</head><body><h1>PaperBridge — Simplified</h1><pre>' + escapeHtml(r.simplified) + '</pre></body></html>');
       doc.close();
       setTimeout(()=>w.print(), 300);
     });
 
-    // compressed share via LZ-String
     btnShare.addEventListener('click', async () => {
       const r = simplifyAll();
       try {
@@ -646,6 +983,7 @@
       glossaryEl.innerHTML = '<li><small class="muted">No special terms detected.</small></li>';
       termPill.textContent = 'Terms: 0';
       statusPill.textContent = 'Cleared';
+      friendlyMessage('🧼 Fresh slate ready. Paste when you are!');
     });
 
     difficulty.addEventListener('input', () => {
@@ -654,8 +992,319 @@
     });
     difficulty.addEventListener('change', () => simplifyAll());
     presetSelect.addEventListener('change', () => simplifyAll());
+    toneSelect.addEventListener('change', () => simplifyAll());
 
-    // File upload: handle .txt/.md/.json/.docx/.pdf
+    visualToggle.addEventListener('click', () => {
+      visualContainer.classList.toggle('active');
+      visualToggle.classList.toggle('active');
+      if (visualContainer.classList.contains('active')) {
+        friendlyMessage('🖼️ Visual mode on. Cards ahead!');
+        renderVisualSummary(outputEl.textContent || inputEl.value);
+      } else {
+        friendlyMessage('Visual cards tucked away.');
+      }
+    });
+
+    surpriseBtn.addEventListener('click', () => {
+      const presetOptions = Array.from(presetSelect.options);
+      presetSelect.selectedIndex = Math.floor(Math.random() * presetOptions.length);
+      const tones = ['plain','professional','casual'];
+      toneSelect.value = tones[Math.floor(Math.random()*tones.length)];
+      const lvl = Math.floor(Math.random()*3)+1;
+      difficulty.value = lvl;
+      diffLabel.textContent = lvl===1 ? 'Simple' : (lvl===2 ? 'Medium' : 'Strong');
+      runSimplifyFlow('simple');
+      friendlyMessage('🎲 Surprise preset loaded!');
+    });
+
+    function speak(text) {
+      if (!('speechSynthesis' in window)) { alert('Speech synthesis is not supported in this browser.'); return; }
+      speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.pitch = 1; utter.rate = 1;
+      utter.voice = speechSynthesis.getVoices().find(v => v.lang.startsWith('en')) || null;
+      speechSynthesis.speak(utter);
+    }
+    btnReadAloud.addEventListener('click', () => {
+      const r = simplifyAll();
+      speak(r.simplified);
+      friendlyMessage('🔊 Reading your summary aloud.');
+    });
+
+    audioToggle.addEventListener('click', async () => {
+      if (audioToggle.getAttribute('aria-pressed') === 'true') {
+        audioToggle.setAttribute('aria-pressed', 'false');
+        audioToggle.textContent = '🎧 Lo-fi off';
+        lofi.pause();
+        friendlyMessage('🎧 Quiet mode. Focus on the words.');
+        return;
+      }
+      audioToggle.setAttribute('aria-pressed', 'true');
+      audioToggle.textContent = '🎧 Lo-fi on';
+      try { await lofi.play(); friendlyMessage('🎶 Lo-fi vibes coming right up.'); }
+      catch { friendlyMessage('⚠️ Tap again to allow audio.'); }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        lofi.pause();
+        audioToggle.setAttribute('aria-pressed', 'false');
+        audioToggle.textContent = '🎧 Lo-fi off';
+      }
+    });
+
+    function recordTheme(theme) {
+      localStorage.setItem('paperbridge:theme', JSON.stringify(theme));
+    }
+
+    const DEFAULT_THEME = {
+      mode:'dark',
+      vars:{ '--bg':'#0f172a','--card':'rgba(15,23,42,0.65)','--text':'#f1f5ff','--accent':'#8b5cf6','--border':'rgba(148,163,184,0.28)','--pill-bg':'rgba(99,102,241,0.15)','--pill-border':'rgba(129,140,248,0.38)','--glow':'#7dd3fc' }
+    };
+    const LIGHT_THEME = {
+      mode:'light',
+      vars:{ '--bg':'#f6f7ff','--card':'rgba(255,255,255,0.72)','--text':'#11142a','--accent':'#4f46e5','--border':'rgba(79,70,229,0.18)','--pill-bg':'rgba(79,70,229,0.12)','--pill-border':'rgba(129,140,248,0.42)','--glow':'#38bdf8' }
+    };
+    const DARK_THEME = JSON.parse(JSON.stringify(DEFAULT_THEME));
+
+    const THEME_PRESETS = {
+      ocean: { mode:'dark', vars:{'--bg':'#06162c','--card':'rgba(9,26,52,0.72)','--text':'#e0f7ff','--accent':'#06b6d4','--border':'rgba(45,154,202,0.28)','--pill-bg':'rgba(6,182,212,0.18)','--pill-border':'rgba(6,182,212,0.35)','--glow':'#06b6d4'} },
+      minimal: { mode:'light', vars:{'--bg':'#fdfdfc','--card':'rgba(255,255,255,0.86)','--text':'#111827','--accent':'#4b5563','--border':'rgba(148,163,184,0.25)','--pill-bg':'rgba(148,163,184,0.16)','--pill-border':'rgba(148,163,184,0.32)','--glow':'#94a3b8'} },
+      sunset: { mode:'dark', vars:{'--bg':'#1b0f2b','--card':'rgba(39,15,61,0.72)','--text':'#fde4ff','--accent':'#f472b6','--border':'rgba(244,114,182,0.28)','--pill-bg':'rgba(244,114,182,0.18)','--pill-border':'rgba(244,114,182,0.35)','--glow':'#fb7185'} },
+      cyber: { mode:'dark', vars:{'--bg':'#020617','--card':'rgba(15,23,42,0.82)','--text':'#cffafe','--accent':'#22d3ee','--border':'rgba(34,211,238,0.3)','--pill-bg':'rgba(34,211,238,0.18)','--pill-border':'rgba(34,211,238,0.32)','--glow':'#22d3ee'} }
+    };
+
+    function applyTheme(theme) {
+      Object.entries(theme.vars).forEach(([k,v]) => document.documentElement.style.setProperty(k,v));
+      document.documentElement.setAttribute('data-theme', theme.mode === 'light' ? 'light' : 'dark');
+      colorInputs.forEach(inp => {
+        const key = inp.dataset.var;
+        if (key && theme.vars[key]) inp.value = theme.vars[key];
+      });
+      recordTheme(theme);
+    }
+
+    function loadTheme() {
+      try {
+        const raw = localStorage.getItem('paperbridge:theme');
+        if (!raw) { applyTheme(DEFAULT_THEME); return; }
+        applyTheme(JSON.parse(raw));
+      } catch { applyTheme(DEFAULT_THEME); }
+    }
+    loadTheme();
+
+    function loadSavedThemes() {
+      try {
+        const raw = localStorage.getItem('paperbridge:savedThemes');
+        if (!raw) return [];
+        return JSON.parse(raw);
+      } catch { return []; }
+    }
+    function saveThemeList(list) { localStorage.setItem('paperbridge:savedThemes', JSON.stringify(list)); }
+    function renderSavedThemes() {
+      const themes = loadSavedThemes();
+      clearChildren(savedThemeList);
+      if (!themes.length) {
+        const li = document.createElement('li');
+        const small = document.createElement('small'); small.className = 'muted'; appendText(small, 'No saved themes yet. Craft one and press Save.');
+        li.appendChild(small); savedThemeList.appendChild(li); return;
+      }
+      themes.forEach((item, idx) => {
+        const li = document.createElement('li');
+        li.style.display = 'flex'; li.style.justifyContent = 'space-between'; li.style.alignItems = 'center'; li.style.gap = '12px';
+        const name = document.createElement('span'); appendText(name, item.name);
+        const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '8px';
+        const applyBtn = document.createElement('button'); applyBtn.className = 'ghost'; applyBtn.textContent = 'Apply';
+        applyBtn.addEventListener('click', () => applyTheme(item.theme));
+        const exportBtn = document.createElement('button'); exportBtn.className = 'ghost'; exportBtn.textContent = 'Export';
+        exportBtn.addEventListener('click', () => exportTheme(item));
+        const deleteBtn = document.createElement('button'); deleteBtn.className = 'ghost'; deleteBtn.textContent = 'Delete';
+        deleteBtn.addEventListener('click', () => {
+          const list = loadSavedThemes(); list.splice(idx, 1); saveThemeList(list); renderSavedThemes();
+        });
+        row.appendChild(applyBtn); row.appendChild(exportBtn); row.appendChild(deleteBtn);
+        li.appendChild(name); li.appendChild(row); savedThemeList.appendChild(li);
+      });
+    }
+    renderSavedThemes();
+
+    themePresetButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const preset = btn.dataset.themePreset;
+        const theme = THEME_PRESETS[preset];
+        if (theme) { applyTheme(theme); friendlyMessage('🎨 ' + btn.textContent.trim() + ' applied.'); }
+      });
+    });
+    themeRandom.addEventListener('click', () => {
+      const keys = Object.keys(THEME_PRESETS);
+      const choice = THEME_PRESETS[keys[Math.floor(Math.random()*keys.length)]];
+      applyTheme(choice); friendlyMessage('✨ Random theme engaged.');
+    });
+
+    themeSaveBtn.addEventListener('click', () => {
+      const name = (themeNameInput.value || '').trim();
+      if (!name) { alert('Name your theme before saving.'); return; }
+      const theme = {
+        mode: document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
+        vars: {}
+      };
+      colorInputs.forEach(inp => {
+        const key = inp.dataset.var;
+        if (key) theme.vars[key] = inp.value;
+      });
+      theme.vars['--glow'] = getComputedStyle(document.documentElement).getPropertyValue('--glow').trim() || '#7dd3fc';
+      const list = loadSavedThemes(); list.push({ name, theme }); saveThemeList(list); renderSavedThemes();
+      themeNameInput.value = ''; friendlyMessage('💾 Theme saved. Share it anytime.');
+    });
+
+    function exportTheme(item) {
+      const data = JSON.stringify(item, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = item.name.replace(/\s+/g,'-').toLowerCase() + '.theme';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    themeReset.addEventListener('click', () => { applyTheme(DEFAULT_THEME); friendlyMessage('Reset to default glow.'); });
+    themeDark.addEventListener('click', () => { applyTheme(DARK_THEME); friendlyMessage('🌙 Night shift activated.'); });
+    themeLight.addEventListener('click', () => { applyTheme(LIGHT_THEME); friendlyMessage('☀️ Daylight mode restored.'); });
+
+    colorInputs.forEach(inp => {
+      inp.addEventListener('input', () => {
+        const key = inp.dataset.var; if (!key) return;
+        document.documentElement.style.setProperty(key, inp.value);
+        const current = {
+          mode: document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
+          vars: {}
+        };
+        ['--bg','--card','--text','--accent','--border','--pill-bg','--pill-border','--glow'].forEach(k => {
+          current.vars[k] = getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+        });
+        recordTheme(current);
+      });
+    });
+
+    function togglePanel(open) {
+      if (open) { themePanel.classList.remove('hidden'); themePanel.setAttribute('aria-hidden','false'); }
+      else { themePanel.classList.add('hidden'); themePanel.setAttribute('aria-hidden','true'); }
+    }
+    const openThemeBtn = document.getElementById('openTheme');
+    openThemeBtn.addEventListener('click', () => togglePanel(themePanel.classList.contains('hidden')));
+    gear.addEventListener('click', () => togglePanel(themePanel.classList.contains('hidden')));
+    themeClose.addEventListener('click', () => togglePanel(false));
+
+    themeCopy.addEventListener('click', async () => {
+      try {
+        const data = localStorage.getItem('paperbridge:theme');
+        if (!data) throw new Error('No theme');
+        await navigator.clipboard.writeText(data);
+        alert('Theme JSON copied.');
+      } catch { alert('Could not copy theme JSON.'); }
+    });
+
+    themePaste.addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        const parsed = JSON.parse(text);
+        applyTheme(parsed);
+        friendlyMessage('📋 Theme pasted from clipboard.');
+      } catch { alert('Clipboard did not contain valid theme JSON.'); }
+    });
+
+    themeExport.addEventListener('click', () => {
+      const data = localStorage.getItem('paperbridge:theme');
+      if (!data) { alert('No theme to export.'); return; }
+      exportTheme({ name: 'paperbridge-theme', theme: JSON.parse(data) });
+    });
+
+    loadExternalGlossary.addEventListener('click', () => {
+      const url = externalGlossaryUrlInput.value.trim();
+      fetchAndLoadExternalGlossary(url).catch(() => alert('Could not load glossary.'));
+    });
+    clearExternalGlossary.addEventListener('click', () => {
+      externalGlossaryUrlInput.value = '';
+      statusPill.textContent = 'Glossary URL cleared';
+    });
+
+    saveAiKeyBtn.addEventListener('click', () => {
+      const key = aiKeyInput.value.trim();
+      if (!key) { alert('Paste an API key first.'); return; }
+      localStorage.setItem('paperbridge:aiKey', key);
+      alert('API key stored locally.');
+    });
+    clearAiKeyBtn.addEventListener('click', () => {
+      localStorage.removeItem('paperbridge:aiKey');
+      aiKeyInput.value = '';
+      alert('API key cleared.');
+    });
+    const storedKey = localStorage.getItem('paperbridge:aiKey');
+    if (storedKey) aiKeyInput.value = storedKey;
+
+    glossaryUpload.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(String(reader.result || ''));
+          Object.assign(LARGE_GLOSSARY, parsed);
+          buildGlossaryIndex();
+          alert('Glossary merged.');
+        } catch { alert('Invalid glossary JSON.'); }
+      };
+      reader.readAsText(f);
+    });
+
+    document.addEventListener('dragover', e => e.preventDefault());
+    document.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!f) return;
+      if (!f.name.endsWith('.json')) return alert('Drop a .json glossary file.');
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          Object.assign(LARGE_GLOSSARY, parsed);
+          buildGlossaryIndex();
+          alert('Glossary file merged.');
+        } catch { alert('Invalid JSON file'); }
+      };
+      reader.readAsText(f);
+    });
+
+    btnAI.addEventListener('click', async () => {
+      const key = localStorage.getItem('paperbridge:aiKey');
+      if (!key) { alert('Paste an OpenAI API key in Theme & AI panel to enable AI rewrite.'); return; }
+      const raw = inputEl.value || '';
+      if (!raw.trim()) { alert('Paste some text first.'); return; }
+      statusPill.textContent = 'Calling OpenAI…';
+      friendlyMessage('🤖 Crafting an AI-assisted rewrite.');
+      try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json','Authorization': 'Bearer ' + key},
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: 'You are PaperBridge, an assistant that rewrites text into clear, human-friendly language while keeping critical meaning intact.' },
+              { role: 'user', content: 'Rewrite and simplify this text with tone ' + toneSelect.value + ':\n' + raw }
+            ],
+            temperature: 0.6
+          })
+        });
+        const data = await response.json();
+        const aiText = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+        if (!aiText) throw new Error('No response');
+        inputEl.value = raw + '\n\n---\nAI rewrite:\n' + aiText.trim();
+        runSimplifyFlow('simple');
+      } catch (err) {
+        console.error(err);
+        alert('AI rewrite failed. Check your API key or network.');
+        statusPill.textContent = 'AI failed';
+      }
+    });
+
     fileInput.addEventListener('change', (e) => {
       const f = e.target.files && e.target.files[0];
       if (!f) return;
@@ -666,7 +1315,7 @@
           const ab = ev.target.result;
           mammoth.extractRawText({arrayBuffer:ab}).then(result => {
             inputEl.value = result.value || '';
-            simplifyAll();
+            runSimplifyFlow('simple');
           }).catch(()=>{ alert('Could not parse docx.'); });
         };
         reader.readAsArrayBuffer(f);
@@ -686,7 +1335,7 @@
               text += strings.join(' ') + '\n\n';
             }
             inputEl.value = text;
-            simplifyAll();
+            runSimplifyFlow('simple');
           } catch (err) {
             console.error(err);
             alert('Could not extract text from PDF. Consider converting to .docx or .txt.');
@@ -697,48 +1346,23 @@
         const reader = new FileReader();
         reader.onload = function(ev) {
           inputEl.value = String(ev.target.result || '');
-          simplifyAll();
+          runSimplifyFlow('simple');
         };
         reader.readAsText(f);
       }
     });
 
-    // glossary upload merge
-    glossaryUpload.addEventListener('change', (e) => {
-      const f = e.target.files && e.target.files[0];
-      if (!f) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const parsed = JSON.parse(String(reader.result || ''));
-          Object.assign(LARGE_GLOSSARY, parsed);
-          buildGlossaryIndex();
-          alert('Glossary merged.');
-        } catch (err) { alert('Invalid glossary JSON.'); }
-      };
-      reader.readAsText(f);
+    btnMergeGlossary.addEventListener('click', () => {
+      if (!glossaryUpload.files || !glossaryUpload.files[0]) { alert('Choose a glossary JSON file first.'); return; }
+      glossaryUpload.dispatchEvent(new Event('change'));
     });
 
-    // Drag/drop glossary merge
-    document.addEventListener('dragover', e => e.preventDefault());
-    document.addEventListener('drop', (e) => {
-      e.preventDefault();
-      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (!f) return;
-      if (!f.name.endsWith('.json')) return alert('Drop a .json glossary file.');
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const parsed = JSON.parse(reader.result);
-          Object.assign(LARGE_GLOSSARY, parsed);
-          buildGlossaryIndex();
-          alert('Glossary file merged.');
-        } catch (err) { alert('Invalid JSON file'); }
-      };
-      reader.readAsText(f);
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && !themePanel.classList.contains('hidden')) {
+        themePanel.classList.add('hidden'); themePanel.setAttribute('aria-hidden', 'true');
+      }
     });
 
-    // Restore from ?t= compressed share
     (function restoreFromURL(){
       try {
         const params = new URLSearchParams(location.search);
@@ -747,11 +1371,10 @@
         const decompressed = LZString.decompressFromEncodedURIComponent(t);
         if (decompressed) {
           clearChildren(outputEl);
-          const wrapper = document.createElement('div');
-          appendText(wrapper, decompressed);
+          const wrapper = document.createElement('div'); appendText(wrapper, decompressed);
           outputEl.appendChild(wrapper);
           statusPill.textContent = 'Shared result';
-          const { hits } = simplifyForPreset(decompressed, presetSelect.value === '5' ? 'eli5' : presetSelect.value, parseInt(difficulty.value,10));
+          const { hits } = simplifyForPreset(decompressed, presetSelect.value === '5' ? 'eli5' : presetSelect.value, parseInt(difficulty.value,10), toneSelect.value);
           const detected = Array.from(new Set(hits.map(h=>h.toLowerCase().trim())));
           renderGlossary(detected);
           modePill.textContent = 'Mode: Shared';
@@ -760,253 +1383,98 @@
       } catch(e){}
     })();
 
-    // Theme panel & focus trap
-    const DEFAULT_THEME = {
-      mode:'light',
-      vars:{
-        '--bg':'#f7f7fb','--card':'#ffffff','--text':'#0f172a','--accent':'#0f62fe','--border':'#d7d7e6','--pill-bg':'#eef2ff','--pill-border':'#c7d2fe'
-      }
-    };
-    const DARK_THEME = {
-      mode:'dark',
-      vars:{
-        '--bg':'#0f1224','--card':'#111427','--text':'#e3e6ef','--accent':'#4f46e5','--border':'#222745','--pill-bg':'#1f2440','--pill-border':'#2b3158'
-      }
-    };
-    function applyTheme(theme) {
-      Object.entries(theme.vars).forEach(([k,v]) => document.documentElement.style.setProperty(k,v));
-      document.documentElement.setAttribute('data-theme', theme.mode === 'dark' ? 'dark' : 'light');
-      colorInputs.forEach(inp => {
-        const key = inp.dataset.var;
-        if (key && theme.vars[key]) inp.value = theme.vars[key];
-      });
-      localStorage.setItem('paperbridge:theme', JSON.stringify(theme));
-    }
-    function loadTheme() {
-      try {
-        const raw = localStorage.getItem('paperbridge:theme');
-        if (!raw) {
-          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          applyTheme(prefersDark ? DARK_THEME : DEFAULT_THEME);
-          return;
-        }
-        applyTheme(JSON.parse(raw));
-      } catch { applyTheme(DEFAULT_THEME); }
-    }
-    loadTheme();
+    buildGlossaryIndex();
 
-    let panelOpen = false; let lastFocused = null;
-    const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-    function trapFocus(container) {
-      const nodes = Array.from(container.querySelectorAll(focusableSelector)).filter(n => !n.disabled);
-      if (!nodes.length) return;
-      let i = 0;
-      function keyHandler(e) {
-        if (e.key === 'Tab') {
-          e.preventDefault();
-          if (e.shiftKey) i = (i - 1 + nodes.length) % nodes.length;
-          else i = (i + 1) % nodes.length;
-          nodes[i].focus();
-        } else if (e.key === 'Escape') closePanel();
-      }
-      container.addEventListener('keydown', keyHandler);
-      return () => container.removeEventListener('keydown', keyHandler);
-    }
-    let releaseTrap = null;
-    function openPanel() {
-      lastFocused = document.activeElement;
-      themePanel.classList.remove('hidden'); themePanel.setAttribute('aria-hidden','false'); panelOpen = true;
-      const first = themePanel.querySelector('input[type="color"], button, [tabindex]:not([tabindex="-1"])');
-      if (first) first.focus();
-      releaseTrap = trapFocus(themePanel);
-      externalGlossaryUrlInput.value = localStorage.getItem('paperbridge:externalGlossaryUrl') || '';
-      aiKeyInput.value = localStorage.getItem('paperbridge:aiKey') || '';
-    }
-    function closePanel() {
-      themePanel.classList.add('hidden'); themePanel.setAttribute('aria-hidden','true'); panelOpen = false;
-      if (lastFocused && lastFocused.focus) lastFocused.focus();
-      if (releaseTrap) { releaseTrap(); releaseTrap = null; }
-    }
-    gear.addEventListener('click', () => panelOpen ? closePanel() : openPanel());
-    document.getElementById('openTheme').addEventListener('click', () => panelOpen ? closePanel() : openPanel());
-    themeClose.addEventListener('click', closePanel);
-
-    colorInputs.forEach(inp => {
-      inp.addEventListener('input', (e) => {
-        const k = e.target.dataset.var; const v = e.target.value;
-        if (!k) return;
-        document.documentElement.style.setProperty(k, v);
-        const stored = JSON.parse(localStorage.getItem('paperbridge:theme') || JSON.stringify(DEFAULT_THEME));
-        stored.vars[k] = v;
-        localStorage.setItem('paperbridge:theme', JSON.stringify(stored));
-      });
-    });
-
-    themeReset.addEventListener('click', () => applyTheme(DEFAULT_THEME));
-    themeDark.addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? DEFAULT_THEME : DARK_THEME));
-    themeCopy.addEventListener('click', async () => {
-      try { const theme = JSON.parse(localStorage.getItem('paperbridge:theme') || JSON.stringify(DEFAULT_THEME)); await navigator.clipboard.writeText(JSON.stringify(theme, null, 2)); alert('Theme JSON copied.'); } catch { alert('Copy failed.'); }
-    });
-    themePaste.addEventListener('click', () => {
-      const raw = prompt('Paste theme JSON or glossary JSON (term→{simple,note})');
-      if (!raw) return;
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed.vars) { applyTheme(parsed); alert('Theme applied.'); }
-        else { Object.assign(LARGE_GLOSSARY, parsed); buildGlossaryIndex(); alert('Glossary merged.'); }
-      } catch (e) { alert('Invalid JSON.'); }
-    });
-    themeExport.addEventListener('click', () => {
-      const theme = localStorage.getItem('paperbridge:theme') || JSON.stringify(DEFAULT_THEME);
-      const blob = new Blob([theme], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'paperbridge-theme.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    });
-
-    // External glossary load
-    loadExternalGlossary.addEventListener('click', () => {
-      const url = externalGlossaryUrlInput.value.trim();
-      if (!url) return alert('Enter a URL to a compressed glossary file (LZ-String compressed JSON).');
-      fetchAndLoadExternalGlossary(url).then(() => {
-        localStorage.setItem('paperbridge:externalGlossaryUrl', url);
-      }).catch(err => { console.error(err); alert('Failed to load external glossary: ' + (err && err.message || 'error')); });
-    });
-    clearExternalGlossary.addEventListener('click', () => {
-      externalGlossaryUrlInput.value = '';
-      localStorage.removeItem('paperbridge:externalGlossaryUrl');
-      alert('Cleared external glossary URL (existing in-memory glossary remains).');
-    });
-
-    // AI key save / clear (stores locally)
-    saveAiKeyBtn.addEventListener('click', () => {
-      const key = aiKeyInput.value.trim();
-      if (!key) return alert('Enter your OpenAI API key (starts with sk-)');
-      localStorage.setItem('paperbridge:aiKey', key);
-      alert('API key saved locally. AI Rewrite will call OpenAI directly from your browser.');
-    });
-    clearAiKeyBtn.addEventListener('click', () => {
-      localStorage.removeItem('paperbridge:aiKey');
-      aiKeyInput.value = '';
-      alert('Cleared saved API key.');
-    });
-
-    // Start indexing if there's an external glossary URL saved
-    (function initExternal() {
-      const url = localStorage.getItem('paperbridge:externalGlossaryUrl');
-      if (url) {
-        externalGlossaryUrlInput.value = url;
-        fetchAndLoadExternalGlossary(url).catch(()=>{ /* ignore */ });
-      }
-      setTimeout(buildGlossaryIndex, 200);
-    })();
-
-    // AI rewrite: uses saved API key if present, else opens Theme panel and focuses API input (no confirm prompt)
-    btnAI.addEventListener('click', async () => {
-      const savedKey = localStorage.getItem('paperbridge:aiKey') || '';
-      const proxy = localStorage.getItem('paperbridge:aiEndpoint') || '';
-      if (!savedKey && !proxy) {
-        // Instead of an annoying confirm popup, open the Theme panel and focus the API key field.
-        openPanel();
-        // Focus aiKeyInput after the panel is visible
-        setTimeout(() => {
-          aiKeyInput.focus();
-          // visually hint the user with status pill
-          statusPill.textContent = 'Paste OpenAI API key in Theme to enable AI';
-        }, 180);
-        return;
-      }
-
-      const preset = presetSelect.value;
-      const lvl = parseInt(difficulty.value,10) || 1;
-      const r = simplifyAll(); // show initial simplified view and get raw
-      const payloadText = r.raw || inputEl.value || '';
-
-      // Build a controlled prompt
-      const prompt = `Simplify the following text for reading-level="${preset}" with difficulty=${lvl}. Keep the original meaning and do not add legal advice. Output only the simplified text. Original:\n\n${payloadText}`;
-
-      statusPill.textContent = 'AI rewriting…';
-      try {
-        let rewritten = null;
-        if (savedKey) {
-          // Direct OpenAI call (browser). WARNING: your key is exposed in your browser.
-          const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + savedKey
-            },
-            body: JSON.stringify({
-              model: 'gpt-3.5-turbo',
-              messages: [
-                { role:'system', content:'You are a helpful assistant that simplifies text while preserving meaning. Keep output clear and concise.' },
-                { role:'user', content: prompt }
-              ],
-              max_tokens: 2000,
-              temperature: 0.25
-            })
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          navLinks.forEach(link => {
+            link.classList.toggle('active', link.getAttribute('href').slice(1) === entry.target.id);
           });
-          if (!resp.ok) {
-            const txt = await resp.text();
-            throw new Error('OpenAI API error: ' + resp.status + ' ' + txt);
-          }
-          const j = await resp.json();
-          rewritten = j?.choices?.[0]?.message?.content || null;
-        } else {
-          // fallback to proxy if configured
-          const proxyUrl = proxy;
-          const resp = await fetch(proxyUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: payloadText, preset, difficulty: lvl })
-          });
-          if (!resp.ok) throw new Error('Proxy error ' + resp.status);
-          const j = await resp.json();
-          rewritten = j.rewritten || j.result || j.text || null;
         }
-
-        if (!rewritten) throw new Error('No rewritten text returned from AI.');
-
-        // show result
-        clearChildren(outputEl);
-        const wrapper = document.createElement('div');
-        appendText(wrapper, rewritten);
-        outputEl.appendChild(wrapper);
-        statusPill.textContent = 'AI rewrite complete';
-
-        // detect glossary hits
-        const { hits } = simplifyForPreset(rewritten, preset === '5' ? 'eli5' : preset, lvl);
-        const detected = Array.from(new Set(hits.map(h=>h.toLowerCase().trim())));
-        renderGlossary(detected);
-        modePill.textContent = 'Mode: AI';
-        termPill.textContent = `Terms: ${detected.length}`;
-      } catch (err) {
-        console.error(err);
-        alert('AI Rewrite failed: ' + (err && err.message ? err.message : String(err)));
-        statusPill.textContent = 'AI failed';
-      }
+      });
+    }, { threshold:0.5 });
+    ['home','simplify','themes','learn','about'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
     });
 
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-      if (e.key.toLowerCase() === 'o' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); panelOpen ? closePanel() : openPanel(); }
-      if (e.key === 'Escape') { if (panelOpen) closePanel(); const p = document.querySelector('.popover'); if (p) p.remove(); }
+    const particlesCanvas = document.getElementById('particleCanvas');
+    const ctx = particlesCanvas.getContext('2d');
+    let particles = [];
+    let mouseX = 0, mouseY = 0;
+
+    function resizeCanvas() {
+      particlesCanvas.width = window.innerWidth;
+      particlesCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function createParticles(count) {
+      particles = new Array(count).fill(0).map(() => ({
+        x: Math.random() * particlesCanvas.width,
+        y: Math.random() * particlesCanvas.height,
+        radius: Math.random() * 2 + 0.5,
+        alpha: Math.random() * 0.6 + 0.2,
+        speedX: (Math.random() - 0.5) * 0.4,
+        speedY: (Math.random() - 0.5) * 0.4
+      }));
+    }
+    createParticles(120);
+
+    window.addEventListener('mousemove', (ev) => { mouseX = ev.clientX; mouseY = ev.clientY; });
+
+    function animateParticles() {
+      ctx.clearRect(0,0,particlesCanvas.width, particlesCanvas.height);
+      particles.forEach(p => {
+        const dx = (mouseX / particlesCanvas.width - 0.5) * 0.6;
+        const dy = (mouseY / particlesCanvas.height - 0.5) * 0.6;
+        p.x += p.speedX + dx; p.y += p.speedY + dy;
+        if (p.x < 0) p.x = particlesCanvas.width;
+        if (p.x > particlesCanvas.width) p.x = 0;
+        if (p.y < 0) p.y = particlesCanvas.height;
+        if (p.y > particlesCanvas.height) p.y = 0;
+        ctx.beginPath(); ctx.fillStyle = `rgba(125,211,252,${p.alpha})`;
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fill();
+      });
+      requestAnimationFrame(animateParticles);
+    }
+    animateParticles();
+
+    const consoleArt = `
+    ╔══════════════════════════╗
+    ║  🌉 Welcome to PaperBridge ║
+    ║  Words meet understanding ║
+    ╚══════════════════════════╝
+    `;
+    Object.defineProperty(window, 'bridge', {
+      get() {
+        console.log(consoleArt);
+        console.log('Keep building connections.');
+        return 'PaperBridge';
+      },
+      configurable: true
     });
 
-    // expose some utilities for debugging
-    window._paperbridge = {
-      simplifyAll,
-      LARGE_GLOSSARY,
-      buildGlossaryIndex,
-      fetchAndLoadExternalGlossary
-    };
+    heroTitle.addEventListener('animationend', () => {
+      heroTitle.classList.add('complete');
+    });
 
-    // Initial simplify of sample text
-    simplifyAll();
+    const QUOTES = [
+      'Clarity is kindness. Thanks for choosing it.',
+      'PaperBridge loves a good before-and-after story.',
+      'Small words can carry big ideas across.',
+      'Keep bridging. Someone on the other side is cheering.'
+    ];
+    setInterval(() => {
+      friendlyMessage(QUOTES[Math.floor(Math.random()*QUOTES.length)]);
+    }, 24000);
 
-    // Configure PDF.js worker path (CDN)
     if (window.pdfjsLib) {
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
     }
+
   })();
   </script>
 </body>
