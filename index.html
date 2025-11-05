@@ -1,1485 +1,2163 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PaperBridge — Understand Every Form</title>
-  <meta name="description" content="PaperBridge helps you simplify, clarify, and humanize any document without leaving your browser." />
-  <meta property="og:title" content="PaperBridge — Understand Every Form">
-  <meta property="og:description" content="Simplify, clarify, and humanize any document with AI.">
-  <meta property="og:image" content="preview.png">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23111f4d'/%3E%3Cpath d='M14 38c8-10 18-15 32-12' stroke='%23a78bfa' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M14 28c8-10 18-15 32-12' stroke='%236dd3ff' stroke-width='6' stroke-linecap='round' fill='none' opacity='.75'/%3E%3Ccircle cx='18' cy='38' r='4' fill='%236dd3ff'/%3E%3Ccircle cx='46' cy='26' r='4' fill='%23a78bfa'/%3E%3C/svg%3E" />
-
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
-
-  <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
-  <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-
-  <style>
-    :root {
-      --bg:#0f172a;
-      --bg-2:#1b1f3b;
-      --card:rgba(15,23,42,0.65);
-      --text:#f1f5ff;
-      --accent:#8b5cf6;
-      --accent-soft:rgba(139,92,246,0.25);
-      --border:rgba(148,163,184,0.28);
-      --pill-bg:rgba(99,102,241,0.15);
-      --pill-border:rgba(129,140,248,0.38);
-      --muted:rgba(226,232,255,0.7);
-      --radius:16px;
-      --shadow:0 24px 80px rgba(15,23,42,0.45);
-      --focus:rgba(139,92,246,0.35);
-      --glow:#7dd3fc;
-    }
-    :root[data-theme="light"] {
-      --bg:#f6f7ff;
-      --bg-2:#e7ebff;
-      --card:rgba(255,255,255,0.72);
-      --text:#11142a;
-      --accent:#4f46e5;
-      --accent-soft:rgba(79,70,229,0.18);
-      --border:rgba(79,70,229,0.18);
-      --pill-bg:rgba(79,70,229,0.12);
-      --pill-border:rgba(129,140,248,0.42);
-      --muted:rgba(71,85,105,0.7);
-      --shadow:0 20px 60px rgba(15,23,42,0.18);
-      --focus:rgba(99,102,241,0.22);
-      --glow:#38bdf8;
-    }
-    * { box-sizing:border-box; transition:background-color .4s,color .4s,border-color .4s,box-shadow .4s; }
-    html, body {
-      height:100%; margin:0;
-      font-family:'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background:var(--bg); color:var(--text); overflow-x:hidden; -webkit-font-smoothing:antialiased; position:relative;
-    }
-    body::before {
-      content:""; position:fixed; inset:0; z-index:-2;
-      background:radial-gradient(circle at 20% 20%, rgba(125,211,252,0.25), transparent 55%),
-                 radial-gradient(circle at 80% 10%, rgba(167,139,250,0.25), transparent 50%),
-                 radial-gradient(circle at 50% 80%, rgba(56,189,248,0.2), transparent 55%);
-      animation:aurora 18s ease-in-out infinite alternate;
-    }
-    @keyframes aurora { 0%{transform:translate3d(-2%,-1%,0) scale(1.03);} 50%{transform:translate3d(2%,1%,0) scale(1.08);} 100%{transform:translate3d(-1%,2%,0) scale(1.02);} }
-
-    #particleCanvas { position:fixed; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; }
-
-    .floating-nav{
-      position:fixed; top:18px; left:50%; transform:translateX(-50%); width:min(1080px, calc(100% - 32px));
-      z-index:100; display:flex; align-items:center; justify-content:space-between; padding:12px 20px;
-      border-radius:999px; backdrop-filter:blur(18px); background:rgba(11,15,32,0.55);
-      border:1px solid rgba(148,163,184,0.22); box-shadow:0 24px 60px rgba(2,6,23,0.45);
-    }
-    .floating-nav .brand{ display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:.02em; }
-    .floating-nav .brand span.logo{ display:inline-flex; width:36px; height:36px; border-radius:50%; align-items:center; justify-content:center; background:linear-gradient(135deg, rgba(125,211,252,0.9), rgba(167,139,250,0.9)); color:#0f172a; font-weight:700; }
-    .floating-nav nav{ display:flex; gap:18px; }
-    .floating-nav a{ font-size:14px; text-decoration:none; color:var(--muted); padding:6px 12px; border-radius:999px; }
-    .floating-nav a.active,.floating-nav a:hover{ color:var(--text); background:rgba(99,102,241,0.15); }
-    .floating-nav .nav-actions{ display:flex; align-items:center; gap:10px; }
-
-    .wrap{ width:min(1100px, 92vw); margin:0 auto; position:relative; }
-    .hero{ min-height:92vh; display:flex; align-items:center; justify-content:center; text-align:center; }
-    .hero-content{
-      padding:48px 38px; border-radius:32px; backdrop-filter:blur(28px);
-      background:linear-gradient(145deg, rgba(15,23,42,0.72), rgba(15,23,42,0.4));
-      border:1px solid rgba(148,163,184,0.18); box-shadow:0 30px 120px rgba(15,23,42,0.55);
-      max-width:780px; margin:120px auto 60px; position:relative; overflow:hidden;
-    }
-    .hero-content::after{ content:""; position:absolute; inset:0; background:radial-gradient(circle at 20% 20%, rgba(125,211,252,0.2), transparent 60%); pointer-events:none; }
-    .bridge-title{
-      font-family:'Playfair Display', serif; font-size:clamp(34px, 8vw, 68px); margin:0; letter-spacing:.02em; line-height:1.05;
-      display:flex; justify-content:center; gap:12px; flex-wrap:wrap;
-    }
-    .bridge-title span{ opacity:0; transform:translateY(18px); animation:bridgeReveal 1.8s ease forwards; }
-    .bridge-title span:nth-child(1){ animation-delay:0s; }
-    .bridge-title span:nth-child(2){ animation-delay:.18s; }
-    .bridge-title span:nth-child(3){ animation-delay:.36s; }
-    @keyframes bridgeReveal{ to{opacity:1; transform:translateY(0);} }
-    .tagline{ margin-top:18px; font-size:18px; color:var(--muted); }
-    .hero-video{ margin-top:32px; border-radius:24px; overflow:hidden; border:1px solid rgba(148,163,184,0.2); box-shadow:0 20px 80px rgba(15,23,42,0.45); position:relative; }
-    .hero-video::after{ content:"PaperBridge in motion"; position:absolute; bottom:12px; right:18px; padding:6px 14px; background:rgba(15,23,42,0.55); border-radius:999px; font-size:12px; color:var(--muted); border:1px solid rgba(148,163,184,0.2); }
-    video.loop-demo{ width:100%; max-height:320px; object-fit:cover; filter:saturate(1.15) brightness(1.05); }
-
-    .cta-row{ margin-top:30px; display:flex; justify-content:center; gap:16px; flex-wrap:wrap; }
-
-    button{
-      border:none; border-radius:12px;
-      background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, var(--glow)));
-      color:#fff; padding:12px 20px; font-weight:600; cursor:pointer; box-shadow:0 18px 40px rgba(99,102,241,0.35);
-      transition:transform .2s, box-shadow .2s, background .4s;
-    }
-    button:hover{ transform:translateY(-2px); box-shadow:0 26px 60px rgba(99,102,241,0.38); }
-    button.secondary{ background:rgba(15,23,42,0.02); color:var(--text); border:1px solid var(--border); box-shadow:none; }
-    button.ghost{ background:transparent; color:var(--muted); border:1px solid transparent; box-shadow:none; }
-    .ai-btn{ background:linear-gradient(135deg,#06b6d4,#7c3aed); color:#fff; }
-    button.glow{ box-shadow:0 0 40px rgba(139,92,246,0.4); }
-    button:focus-visible{ outline:3px solid var(--focus); outline-offset:3px; }
-
-    main{ position:relative; padding-bottom:160px; }
-    .section-title{ font-size:32px; margin:0 0 12px; letter-spacing:.02em; }
-    .section-lead{ margin:0 0 28px; color:var(--muted); font-size:16px; }
-
-    .glass-panel{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); backdrop-filter:blur(22px); box-shadow:var(--shadow); overflow:hidden; }
-    .glass-panel .pad{ padding:24px; }
-
-    .layout-grid{ display:grid; grid-template-columns:1fr; gap:22px; }
-    @media(min-width:1020px){ .layout-grid{ grid-template-columns:1.05fr 1fr; } }
-
-    textarea, input[type="text"], input[type="password"], select{
-      width:100%; border:1px solid rgba(148,163,184,0.28); border-radius:16px; padding:16px;
-      background:color-mix(in srgb, var(--card) 88%, rgba(15,23,42,0.05)); color:var(--text); font-family:"Inter", system-ui;
-    }
-    textarea{ min-height:220px; resize:vertical; }
-
-    .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-    .pill{ display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:999px; background:var(--pill-bg); border:1px solid var(--pill-border); color:var(--text); font-size:13px; }
-
-    .result-box{
-      min-height:160px; padding:18px; border-radius:18px; border:1px solid rgba(148,163,184,0.25);
-      background:rgba(15,23,42,0.25); overflow:auto; font-size:16px; line-height:1.6;
-    }
-    mark.repl{ background:linear-gradient(135deg, rgba(125,211,252,0.3), rgba(129,140,248,0.35)); border-radius:8px; padding:0 6px; cursor:pointer; }
-
-    .out{ background:rgba(15,23,42,0.32); border-radius:24px; padding:18px; border:1px solid rgba(148,163,184,0.25); box-shadow:inset 0 0 0 1px rgba(148,163,184,0.15); }
-
-    ul.list{ list-style:none; padding:0; margin:0; }
-    ul.list li{ padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.2); background:rgba(15,23,42,0.18); margin-bottom:8px; }
-
-    footer{ margin-top:80px; color:var(--muted); text-align:center; font-size:13px; }
-
-    .status-stack{ display:flex; align-items:center; gap:8px; }
-    .visual-toggle{ display:flex; align-items:center; gap:8px; font-size:14px; color:var(--muted); }
-    .visual-board{ display:none; margin-top:18px; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; }
-    .visual-board.active{ display:grid; }
-    .visual-card{ padding:18px; border-radius:18px; background:rgba(15,23,42,0.32); border:1px solid rgba(148,163,184,0.2); box-shadow:0 20px 50px rgba(15,23,42,0.35); }
-
-    .gear{
-      position:fixed; right:20px; bottom:20px; z-index:120; width:56px; height:56px; border-radius:999px;
-      display:flex; align-items:center; justify-content:center; background:rgba(15,23,42,0.6);
-      border:1px solid rgba(148,163,184,0.25); box-shadow:0 24px 60px rgba(15,23,42,0.45); cursor:pointer;
-    }
-    .panel{
-      position:fixed; right:20px; bottom:92px; z-index:110; width:420px; max-width:calc(100% - 32px);
-      background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; box-shadow:var(--shadow);
-      transform-origin:100% 100%; transition:transform .2s, opacity .2s;
-    }
-    .panel.hidden{ opacity:0; transform:translateY(6px) scale(.96); pointer-events:none; }
-    .panel .row{ margin-top:8px; }
-    .panel input[type="color"]{ width:48px; height:32px; border:none; padding:0; background:none; cursor:pointer; }
-
-    .popover{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:150; max-width:680px; width:92%; background:var(--card); border:1px solid var(--border); padding:18px; border-radius:16px; box-shadow:var(--shadow); }
-    .popover .close{ position:absolute; right:8px; top:8px; border:none; background:transparent; color:var(--muted); cursor:pointer; }
-
-    .fileRow{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .fileRow input[type="file"]{ border:1px dashed rgba(148,163,184,0.35); padding:10px; border-radius:12px; background:rgba(15,23,42,0.2); color:var(--muted); }
-
-    .progress-overlay{ position:fixed; inset:0; background:rgba(7,10,20,0.72); backdrop-filter:blur(14px); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:200; opacity:0; pointer-events:none; transition:opacity .4s; }
-    .progress-overlay.active{ opacity:1; pointer-events:auto; }
-    .progress-box{ width:min(440px, 92vw); background:rgba(15,23,42,0.8); border-radius:22px; padding:28px; border:1px solid rgba(148,163,184,0.25); text-align:center; box-shadow:0 24px 80px rgba(15,23,42,0.6); }
-    .progress-bar{ height:6px; width:100%; border-radius:999px; background:rgba(148,163,184,0.18); overflow:hidden; margin-top:18px; }
-    .progress-bar span{ display:block; height:100%; width:0; background:linear-gradient(135deg, rgba(125,211,252,0.8), rgba(129,140,248,0.9)); transition:width .4s ease; }
-
-    .mascot{
-      position:fixed; bottom:28px; left:28px; max-width:260px; background:rgba(15,23,42,0.65);
-      border:1px solid rgba(148,163,184,0.22); border-radius:18px 18px 18px 6px; padding:16px 20px;
-      box-shadow:0 18px 60px rgba(15,23,42,0.45); display:flex; gap:12px; align-items:flex-start; z-index:90;
-    }
-    .mascot .avatar{ font-size:22px; }
-    .mascot.bounce{ animation:mascotBounce .8s ease; }
-    @keyframes mascotBounce{ 0%{transform:translateY(0);} 30%{transform:translateY(-6px);} 60%{transform:translateY(2px);} 100%{transform:translateY(0);} }
-
-    .term-tooltip{
-      position:fixed; padding:12px 16px; background:rgba(15,23,42,0.85); border:1px solid rgba(148,163,184,0.28);
-      color:var(--text); border-radius:12px; font-size:13px; max-width:260px; pointer-events:none;
-      opacity:0; transform:translateY(6px); transition:opacity .25s, transform .25s; z-index:150;
-    }
-    .term-tooltip.visible{ opacity:1; transform:translateY(0); }
-
-    .themes-grid{ display:grid; gap:18px; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); margin-top:32px; }
-    .theme-card{ padding:18px; border-radius:18px; border:1px solid rgba(148,163,184,0.2); background:rgba(15,23,42,0.25); }
-    .quote{ margin-top:80px; font-family:'Playfair Display', serif; font-size:24px; color:var(--muted); text-align:center; }
-    audio{ display:none; }
-
-    .fade-in { animation:fadeIn .4s ease both; }
-    @keyframes fadeIn { from { opacity:0; transform:translateY(10px);} to { opacity:1; transform:translateY(0); } }
-    .bridge-flow { animation:bridgeFlow .6s ease; }
-    @keyframes bridgeFlow { from { box-shadow:0 0 0 rgba(125,211,252,0); transform:translateX(0);} 50% { box-shadow:0 0 30px rgba(125,211,252,0.35); transform:translateX(6px);} to { box-shadow:0 0 0 rgba(125,211,252,0); transform:translateX(0);} }
-
-    @media(max-width:720px){
-      .floating-nav{ gap:10px; padding:10px 16px; }
-      .floating-nav nav{ display:none; }
-      .hero-content{ padding:38px 22px; }
-      .layout-grid{ grid-template-columns:1fr; }
-      .mascot{ left:50%; transform:translateX(-50%); bottom:20px; }
-    }
-  </style>
-</head>
-<body>
-  <canvas id="particleCanvas" aria-hidden="true"></canvas>
-
-  <header class="floating-nav" id="topNav">
-    <div class="brand">
-      <span class="logo">🌉</span>
-      <span>PaperBridge</span>
-    </div>
-    <nav aria-label="Primary">
-      <a href="#home" class="active">Home</a>
-      <a href="#simplify">Simplify</a>
-      <a href="#themes">Themes</a>
-      <a href="#learn">Learn</a>
-      <a href="#about">About</a>
-    </nav>
-    <div class="nav-actions">
-      <button id="audioToggle" class="ghost" aria-pressed="false">🎧 Lo-fi off</button>
-      <button id="openTheme" class="secondary">Theme Lab</button>
-    </div>
-  </header>
-
-  <main>
-    <section id="home" class="hero">
-      <div class="hero-content">
-        <h1 class="bridge-title"><span>Paper</span><span>Bridge</span><span>Where language meets clarity.</span></h1>
-        <p class="tagline">Simplify any document. Understand everything. A calm space for turning complex forms into human language.</p>
-
-        <div class="cta-row">
-          <button class="glow" onclick="document.querySelector('#simplify').scrollIntoView({behavior:'smooth'});">Start simplifying</button>
-          <button class="secondary" onclick="document.querySelector('#learn').scrollIntoView({behavior:'smooth'});">Why clarity matters</button>
-        </div>
-
-        <div class="hero-video" aria-hidden="true">
-          <video class="loop-demo" autoplay muted loop playsinline>
-            <source src="https://storage.googleapis.com/coverr-main/mp4/Mt_Baker.mp4" type="video/mp4" />
-          </video>
-        </div>
-      </div>
-    </section>
-
-    <section id="simplify" class="wrap" aria-labelledby="simplifyTitle">
-      <div class="glass-panel">
-        <div class="pad">
-          <div class="status-stack">
-            <div class="pill" id="statusPill">Ready</div>
-            <div class="pill" id="modePill">Mode: Simple</div>
-            <div class="pill" id="termPill">Terms: 0</div>
-          </div>
-
-          <h2 class="section-title" id="simplifyTitle">Simplify with confidence</h2>
-          <p class="section-lead">Upload or paste any document. Watch as the dense text gently flows across the PaperBridge.</p>
-
-          <div class="layout-grid">
-            <section class="glass-panel" style="background:rgba(15,23,42,0.4);">
-              <div class="pad">
-                <label><strong>Paste or upload form text</strong></label>
-                <textarea id="input" aria-label="Paste form text">By signing this form, the applicant hereby consents to disclose their SIN pursuant to the program assessment. Notwithstanding any other provision herein, failure to remit sufficient documentation may render the application void.</textarea>
-
-                <div class="fileRow row" style="margin-top:12px;">
-                  <input id="fileInput" type="file" accept=".txt,.md,.json,.docx,.pdf" aria-label="Upload text file (.txt, .md, .json, .docx, .pdf)">
-                  <div class="muted">Upload .txt/.md/.docx/.pdf. JSON merges to glossary if formatted as term → {simple,note}.</div>
-                </div>
-
-                <div class="row" style="margin-top:12px;">
-                  <input id="glossaryUpload" type="file" accept=".json" aria-label="Upload glossary JSON" />
-                  <button id="btnMergeGlossary" class="ghost">Merge glossary</button>
-                  <div class="muted" style="font-size:13px">Expand your term library instantly.</div>
-                </div>
-
-                <div class="row" style="margin-top:16px; justify-content:space-between;">
-                  <div class="row">
-                    <button id="btnSimplify">Simplify</button>
-                    <button id="btnLine" class="secondary">Line-by-line</button>
-                    <button id="btnCopy" class="ghost">Copy simplified</button>
-                    <button id="btnAI" class="ai-btn" title="AI-assisted rewrite">AI Rewrite</button>
-                    <button id="btnReadAloud" class="ghost">🔊 Read aloud</button>
-                  </div>
-                  <div class="row">
-                    <label class="muted" style="font-size:13px">Tone</label>
-                    <select id="toneSelect" aria-label="Tone select" style="min-width:160px;">
-                      <option value="plain">Plain-English</option>
-                      <option value="professional">Professional</option>
-                      <option value="casual">Casual</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="row" style="margin-top:16px;">
-                  <label class="muted" style="margin-right:6px">Preset</label>
-                  <select id="presetSelect" aria-label="Simplify preset">
-                    <option value="eli5">Explain like I'm 5 (ELI5)</option>
-                    <option value="5">5 year old</option>
-                    <option value="10">10 year old</option>
-                    <option value="teen">Teenager</option>
-                    <option value="adult">Adult (Plain)</option>
-                    <option value="legal">Legal (Keep meaning)</option>
-                  </select>
-
-                  <label class="muted" style="margin-left:12px">Difficulty</label>
-                  <input id="difficulty" type="range" min="1" max="3" step="1" value="1" aria-label="Difficulty slider" />
-                  <div id="diffLabel" class="muted" style="min-width:80px;text-align:right">Simple</div>
-                </div>
-
-                <div class="row" style="margin-top:16px;">
-                  <button id="btnTxt" class="ghost">Download .txt</button>
-                  <button id="btnPdf" class="ghost">Download .pdf</button>
-                  <button id="btnShare" class="ghost">Copy share link</button>
-                  <button id="btnClear" class="ghost" style="color:var(--muted)">Clear</button>
-                  <button id="visualToggle" class="ghost">🖼️ Visual mode</button>
-                  <button id="btnSurprise" class="ghost">🎲 Surprise me</button>
-                </div>
-
-                <div style="margin-top:12px" class="muted">Tip: Toggle visual mode to see summaries as cards. Tone lets you guide the personality of the rewrite.</div>
-              </div>
-            </section>
-
-            <section class="glass-panel" aria-labelledby="outputHeading" style="background:rgba(15,23,42,0.4);">
-              <div class="pad">
-                <div class="out" id="outputShell">
-                  <div id="output" class="result-box" role="region" aria-live="polite" tabindex="0"></div>
-                </div>
-
-                <div class="visual-toggle" style="margin-top:18px;">
-                  <span>Visual summary</span>
-                  <span class="muted">(cards appear when Visual mode is active)</span>
-                </div>
-                <div id="visualContainer" class="visual-board" aria-live="polite"></div>
-
-                <h3 id="outputHeading" style="margin-top:24px">Glossary</h3>
-                <ul id="glossary" class="list" aria-live="polite">
-                  <li><small class="muted">No special terms detected.</small></li>
-                </ul>
-              </div>
-            </section>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="themes" class="wrap" style="margin-top:120px;">
-      <div class="glass-panel">
-        <div class="pad">
-          <h2 class="section-title">Theme laboratory</h2>
-          <p class="section-lead">Craft moods for PaperBridge. Save presets, export them, or let the bridge surprise you.</p>
-          <div class="row" style="margin-bottom:16px;">
-            <button data-theme-preset="ocean" class="ghost">🌊 Ocean</button>
-            <button data-theme-preset="minimal" class="ghost">🧘 Minimalist</button>
-            <button data-theme-preset="sunset" class="ghost">🌅 Paper Sunset</button>
-            <button data-theme-preset="cyber" class="ghost">🪩 Cyber Mode</button>
-            <button id="themeRandom" class="ghost">🎲 Surprise theme</button>
-          </div>
-          <div class="row" style="margin-bottom:16px;">
-            <input id="themeName" type="text" placeholder="Name your theme" style="flex:1;" />
-            <button id="themeSave" class="secondary">Save theme</button>
-          </div>
-          <ul id="savedThemes" class="list"></ul>
-        </div>
-      </div>
-    </section>
-
-    <section id="learn" class="wrap" style="margin-top:120px;">
-      <div class="glass-panel">
-        <div class="pad">
-          <h2 class="section-title">Learn why plain language matters</h2>
-          <p class="section-lead">Clarity is access. PaperBridge keeps the human on the other side of every document in mind.</p>
-          <div class="themes-grid">
-            <div class="theme-card">
-              <strong>Accessibility first</strong>
-              <p class="muted">Plain language means fewer barriers for people learning a language, folks with cognitive differences, and anyone under deadline.</p>
-            </div>
-            <div class="theme-card">
-              <strong>Trust through understanding</strong>
-              <p class="muted">Transparent documents build trust. PaperBridge highlights tricky phrases so you can explain them in seconds.</p>
-            </div>
-            <div class="theme-card">
-              <strong>Team-friendly summaries</strong>
-              <p class="muted">Share visual cards or tone-adjusted rewrites that match the audience — from legal counsel to a neighbour.</p>
-            </div>
-            <div class="theme-card">
-              <strong>Future AI magic</strong>
-              <p class="muted">Add GPT-powered simplification, summarise long pages, or read the result aloud. The bridge is ready.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="about" class="wrap" style="margin-top:120px;">
-      <div class="glass-panel">
-        <div class="pad">
-          <h2 class="section-title">Our vision</h2>
-          <p class="section-lead">PaperBridge is a promise: bureaucracy without the headache. We build for clarity, empathy, and delight.</p>
-          <div class="themes-grid">
-            <div class="theme-card">
-              <strong>Human understanding layers</strong>
-              <p class="muted">Hover to define complex language, adjust tone for any audience, or flip into visual mode. Every interaction says “we get you”.</p>
-            </div>
-            <div class="theme-card">
-              <strong>Mascot guidance</strong>
-              <p class="muted">Our origami bird shares encouragement, tips, and gentle nudges toward clarity.</p>
-            </div>
-            <div class="theme-card">
-              <strong>Shareable themes</strong>
-              <p class="muted">Create looks that feel like your organisation and export them as .theme files for your team.</p>
-            </div>
-          </div>
-          <p class="quote">“Understanding is the real signature on every form.”</p>
-        </div>
-      </div>
-    </section>
-
-    <footer>Accessibility: focus visible • Contrast tuned • Runs fully offline once loaded • 🌙 Night shift ready</footer>
-  </main>
-
-  <div class="progress-overlay" id="progressOverlay" role="alert" aria-live="assertive">
-    <div class="progress-box">
-      <div id="progressText">Bridging complexity…</div>
-      <div class="progress-bar"><span id="progressBar"></span></div>
-    </div>
-  </div>
-
-  <div class="mascot" id="mascotBubble" role="status" aria-live="polite">
-    <div class="avatar">🪶</div>
-    <div>
-      <strong>PaperBird</strong>
-      <p id="mascotText" class="muted" style="margin:6px 0 0 0;">Welcome! Drop any document and I’ll help you glide to clarity.</p>
-    </div>
-  </div>
-
-  <div class="term-tooltip" id="termTooltip" role="tooltip"></div>
-
-  <div class="gear" id="gear" title="Open theme panel">⚙️</div>
-
-  <div class="panel hidden" id="themePanel" role="dialog" aria-modal="true" aria-hidden="true">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <strong>Theme & AI</strong>
-      <button id="themeClose" class="ghost">Close</button>
-    </div>
-
-    <div style="margin-top:10px;font-size:13px;color:var(--muted)">Customize colors, add an external glossary URL, or paste an OpenAI API key for one-click AI rewrite (saved locally).</div>
-
-    <div class="row" style="margin-top:12px">
-      <label style="flex:1;display:flex;justify-content:space-between;align-items:center">Accent <input type="color" data-var="--accent" id="cAccent" aria-label="Accent color"></label>
-    </div>
-    <div class="row">
-      <label style="flex:1;display:flex;justify-content:space-between;align-items:center">Background <input type="color" data-var="--bg" id="cBg" aria-label="Background color"></label>
-    </div>
-    <div class="row">
-      <label style="flex:1;display:flex;justify-content:space-between;align-items:center">Card <input type="color" data-var="--card" id="cCard" aria-label="Card color"></label>
-    </div>
-    <div class="row">
-      <label style="flex:1;display:flex;justify-content:space-between;align-items:center">Text <input type="color" data-var="--text" id="cText" aria-label="Text color"></label>
-    </div>
-
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button id="themeReset" class="secondary">Reset</button>
-      <button id="themeDark" class="">Dark</button>
-      <button id="themeLight" class="ghost">Light</button>
-    </div>
-
-    <div style="margin-top:10px">
-      <label style="display:block;font-size:13px;margin-top:10px">External compressed glossary URL (optional)</label>
-      <input id="externalGlossaryUrl" type="text" placeholder="/data/glossary.lz (LZ-String compressed JSON)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px" />
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button id="loadExternalGlossary" class="ghost">Load glossary</button>
-        <button id="clearExternalGlossary" class="ghost">Clear URL</button>
-      </div>
-    </div>
-
-    <div style="margin-top:10px">
-      <label style="display:block;font-size:13px;margin-top:10px">OpenAI API key (optional — stored in your browser)</label>
-      <input id="aiKeyInput" type="password" placeholder="sk-..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px" />
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button id="saveAiKey" class="ghost">Save API Key</button>
-        <button id="clearAiKey" class="ghost">Clear Key</button>
-      </div>
-      <small class="muted">If you paste an API key here the AI Rewrite will call OpenAI directly from your browser (API key is stored locally). Use a proxy if you don't want to paste keys into the browser.</small>
-    </div>
-
-    <div style="display:flex;gap:8px;margin-top:10px">
-      <button id="themeCopy" class="ghost">Copy JSON</button>
-      <button id="themePaste" class="ghost">Paste JSON / Glossary</button>
-      <button id="themeExport" class="ghost">Export</button>
-    </div>
-
-    <small class="muted" style="display:block;margin-top:8px">Changes saved to localStorage. Use compressed glossary files with LZ-String for faster loads.</small>
-  </div>
-
-  <template id="popoverTpl">
-    <div class="popover" role="dialog" aria-modal="true">
-      <button class="close" aria-label="Close">✕</button>
-      <div class="title" style="font-weight:700"></div>
-      <div class="body" style="margin-top:8px;white-space:pre-wrap"></div>
-    </div>
-  </template>
-
-  <audio id="lofi" loop>
-    <source src="https://cdn.pixabay.com/download/audio/2023/09/27/audio_8f2e580dd2.mp3?filename=lofi-study-158436.mp3" type="audio/mpeg">
-  </audio>
-
-  <script>
-  (function(){
-    const inputEl = document.getElementById('input');
-    const fileInput = document.getElementById('fileInput');
-    const glossaryUpload = document.getElementById('glossaryUpload');
-    const outputEl = document.getElementById('output');
-    const glossaryEl = document.getElementById('glossary');
-    const btnSimplify = document.getElementById('btnSimplify');
-    const btnLine = document.getElementById('btnLine');
-    const btnCopy = document.getElementById('btnCopy');
-    const btnTxt = document.getElementById('btnTxt');
-    const btnPdf = document.getElementById('btnPdf');
-    const btnShare = document.getElementById('btnShare');
-    const btnClear = document.getElementById('btnClear');
-    const btnAI = document.getElementById('btnAI');
-    const difficulty = document.getElementById('difficulty');
-    const diffLabel = document.getElementById('diffLabel');
-    const modePill = document.getElementById('modePill');
-    const termPill = document.getElementById('termPill');
-    const statusPill = document.getElementById('statusPill');
-    const presetSelect = document.getElementById('presetSelect');
-    const toneSelect = document.getElementById('toneSelect');
-    const visualToggle = document.getElementById('visualToggle');
-    const visualContainer = document.getElementById('visualContainer');
-    const outputShell = document.getElementById('outputShell');
-    const progressOverlay = document.getElementById('progressOverlay');
-    const progressText = document.getElementById('progressText');
-    const progressBar = document.getElementById('progressBar');
-    const mascotBubble = document.getElementById('mascotBubble');
-    const mascotText = document.getElementById('mascotText');
-    const btnReadAloud = document.getElementById('btnReadAloud');
-    const audioToggle = document.getElementById('audioToggle');
-    const surpriseBtn = document.getElementById('btnSurprise');
-    const lofi = document.getElementById('lofi');
-    const heroTitle = document.querySelector('.bridge-title');
-    const navLinks = document.querySelectorAll('.floating-nav a');
-    const themePresetButtons = document.querySelectorAll('[data-theme-preset]');
-    const themeRandom = document.getElementById('themeRandom');
-    const themeNameInput = document.getElementById('themeName');
-    const themeSaveBtn = document.getElementById('themeSave');
-    const savedThemeList = document.getElementById('savedThemes');
-    const termTooltip = document.getElementById('termTooltip');
-
-    const gear = document.getElementById('gear');
-    const themePanel = document.getElementById('themePanel');
-    const themeClose = document.getElementById('themeClose');
-    const themeReset = document.getElementById('themeReset');
-    const themeDark = document.getElementById('themeDark');
-    const themeLight = document.getElementById('themeLight');
-    const themeCopy = document.getElementById('themeCopy');
-    const themePaste = document.getElementById('themePaste');
-    const themeExport = document.getElementById('themeExport');
-    const externalGlossaryUrlInput = document.getElementById('externalGlossaryUrl');
-    const loadExternalGlossary = document.getElementById('loadExternalGlossary');
-    const clearExternalGlossary = document.getElementById('clearExternalGlossary');
-    const aiKeyInput = document.getElementById('aiKeyInput');
-    const saveAiKeyBtn = document.getElementById('saveAiKey');
-    const clearAiKeyBtn = document.getElementById('clearAiKey');
-    const colorInputs = Array.from(document.querySelectorAll('#themePanel input[type="color"]'));
-    const popoverTpl = document.getElementById('popoverTpl');
-
-    const workerCode = `
-      self.onmessage = function(ev) {
-        const { type, glossary } = ev.data;
-        if (type === 'build') {
-          const index = {};
-          for (const [k, v] of Object.entries(glossary)) {
-            const key = k.toLowerCase();
-            index[key] = v;
-            if (k.length > 3 && !k.endsWith('s')) index[(k + 's').toLowerCase()] = v;
-          }
-          self.postMessage({ type: 'ready', index });
-        }
-      };
-    `;
-    const workerBlob = new Blob([workerCode], { type: 'text/javascript' });
-    const workerUrl = URL.createObjectURL(workerBlob);
-    const glossaryWorker = new Worker(workerUrl);
-
-    let glossaryIndex = null;
-    let workerReady = false;
-
-    glossaryWorker.onmessage = (ev) => {
-      if (ev.data && ev.data.type === 'ready') {
-        glossaryIndex = ev.data.index;
-        workerReady = true;
-        statusPill.textContent = 'Glossary indexed';
-      }
-    };
-
-    const FALLBACK_GLOSSARY = {
-      "applicant":{"simple":"person applying","note":"the person using the form"},
-      "hereby":{"simple":"now","note":"formal word often used by the document"},
-      "pursuant to":{"simple":"according to","note":"refers to a rule or law"},
-      "notwithstanding":{"simple":"even though","note":"overrides another clause"},
-      "remit":{"simple":"send","note":"send documents, fees, or proof"},
-      "void":{"simple":"invalid","note":"not accepted"}
-    };
-
-    const LARGE_GLOSSARY = Object.assign({}, FALLBACK_GLOSSARY);
-
-    function fetchAndLoadExternalGlossary(url) {
-      if (!url) return Promise.reject(new Error('No URL'));
-      statusPill.textContent = 'Loading external glossary…';
-      return fetch(url).then(r => {
-        if (!r.ok) throw new Error('Failed to fetch glossary');
-        return r.text();
-      }).then(txt => {
-        let decompressed;
-        try { decompressed = LZString.decompressFromEncodedURIComponent(txt.trim()) || txt; }
-        catch { decompressed = txt; }
-        let parsed;
-        try { parsed = JSON.parse(decompressed); } catch { parsed = null; }
-        if (!parsed) throw new Error('Invalid or unparsable glossary JSON');
-        Object.assign(LARGE_GLOSSARY, parsed);
-        buildGlossaryIndex();
-        statusPill.textContent = 'External glossary loaded';
-        return parsed;
-      });
-    }
-
-    function buildGlossaryIndex() {
-      statusPill.textContent = 'Indexing glossary…';
-      glossaryWorker.postMessage({ type: 'build', glossary: LARGE_GLOSSARY });
-    }
-
-    function appendText(el, text) { el.appendChild(document.createTextNode(text)); }
-    function clearChildren(el){ while (el.firstChild) el.removeChild(el.firstChild); }
-    function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-    function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-    const PRESET_VOCAB = {
-      eli5: { "applicant":"person applying","pursuant to":"because of","hereby":"now","notwithstanding":"even though","remit":"send","void":"not valid","consents":"says yes","documentation":"papers","failure":"if you don't","assessment":"check","SIN":"Social Insurance Number (SIN)" },
-      "5": {},
-      "10": { "consents":"agrees", "documentation":"documents", "assessment":"review" },
-      teen: { "consents":"agrees", "documentation":"documents", "remit":"submit" },
-      adult: { "pursuant to":"under", "notwithstanding":"despite", "remit":"send" },
-      legal: {}
-    };
-
-    function getBasePatterns(level) {
-      const base = [
-        { find: /\bpursuant to\b/gi, replace: level === 3 ? 'according to' : 'under' },
-        { find: /\bherein\b/gi, replace: 'in this document' },
-        { find: /\bhereby\b/gi, replace: 'now' },
-        { find: /\bnotwithstanding\b/gi, replace: 'even though' },
-        { find: /\bremit\b/gi, replace: 'send' },
-        { find: /\bvoid\b/gi, replace: 'invalid' },
-        { find: /\bshall\b/gi, replace: 'must' },
-        { find: /\bprior to\b/gi, replace: 'before' },
-        { find: /\bsubsequent to\b/gi, replace: 'after' }
-      ];
-      if (level >= 2) {
-        base.push({ find: /\bherewith\b/gi, replace: 'with this' });
-        base.push({ find: /\bconsents\b/gi, replace: 'agrees' });
-        base.push({ find: /\bdocumentation\b/gi, replace: 'documents' });
-      }
-      if (level === 3) {
-        base.push({ find: /\bapplicant\b/gi, replace: 'person applying' });
-        base.push({ find: /\bSIN\b/gi, replace: 'Social Insurance Number (SIN)' });
-        base.push({ find: /\bheretofore\b/gi, replace: 'before now' });
-      }
-      return base;
-    }
-
-    function applyPresetVocab(text, presetKey) {
-      const mapping = PRESET_VOCAB[presetKey] || {};
-      let out = text, hits = [];
-      const keys = Object.keys(mapping).sort((a,b)=>b.length-a.length);
-      for (const k of keys) {
-        const re = new RegExp('\\b' + escapeRegExp(k) + '\\b','gi');
-        out = out.replace(re, (m) => { hits.push(m); return mapping[k]; });
-      }
-      return { text: out, hits };
-    }
-
-    function sentenceSimplify(text, preset) {
-      if (preset === 'legal' || preset === 'adult') return text;
-      const sentences = text.match(/[^.!?]+[.!?]*/g) || [text];
-      const outParts = [];
-      sentences.forEach(s => {
-        let part = s.trim();
-        if (preset === 'eli5' || preset === '5') {
-          part = part.replace(/,\s+/g, '. ').replace(/\s+and\s+/g, '. ');
-        } else if (preset === '10') {
-          part = part.replace(/,\s+/g, '. ');
-        }
-        if (!/[.!?]$/.test(part)) part = part + '.';
-        outParts.push(part);
-      });
-      return outParts.join(' ');
-    }
-
-    function applyTone(text, tone) {
-      if (!text) return text;
-      if (tone === 'professional') {
-        return text.replace(/\bwe\b/gi, 'PaperBridge').replace(/!+/g, '.').replace(/\bokay\b/gi, 'acceptable');
-      }
-      if (tone === 'casual') {
-        return text.replace(/\bshall\b/gi, 'will').replace(/\bmust\b/gi, 'need to').replace(/\bprovide\b/gi, 'share');
-      }
-      return text;
-    }
-
-    function simplifyForPreset(inputText, presetKey, difficultyLevel, tone) {
-      let text = inputText || '';
-      const patterns = getBasePatterns(difficultyLevel);
-      const base = applyPatterns(text, patterns);
-      text = base.out;
-      const pv = applyPresetVocab(text, presetKey);
-      text = pv.text;
-      text = sentenceSimplify(text, presetKey === '5' ? 'eli5' : presetKey);
-      text = applyTone(text, tone || 'plain');
-      const hits = base.hits.concat(pv.hits);
-      return { simplified: text, hits };
-    }
-
-    function applyPatterns(text, patterns){
-      let out = text, hits = [];
-      for (const p of patterns) {
-        out = out.replace(p.find, (m)=>{ hits.push(m); return p.replace; });
-      }
-      return { out, hits };
-    }
-
-    function highlightNodes(text, hits) {
-      const uniq = Array.from(new Set(hits.map(h => h.toLowerCase().trim()))).filter(Boolean);
-      if (!uniq.length) return [document.createTextNode(text)];
-      const fragment = document.createDocumentFragment();
-      const escaped = uniq.map(escapeRegExp).join('|');
-      const regex = new RegExp('\\b(' + escaped + ')\\b','gi');
-      let last = 0, m;
-      while ((m = regex.exec(text)) !== null) {
-        if (m.index > last) fragment.appendChild(document.createTextNode(text.slice(last, m.index)));
-        const mark = document.createElement('mark');
-        mark.className = 'repl';
-        mark.dataset.term = m[0];
-        mark.title = 'Click to explain';
-        mark.addEventListener('click', () => explainTerm(m[0]));
-        mark.addEventListener('mouseenter', (ev) => showTermTooltip(ev, m[0]));
-        mark.addEventListener('mouseleave', hideTermTooltip);
-        mark.appendChild(document.createTextNode(m[0]));
-        fragment.appendChild(mark);
-        last = regex.lastIndex;
-      }
-      if (last < text.length) fragment.appendChild(document.createTextNode(text.slice(last)));
-      return Array.from(fragment.childNodes);
-    }
-
-    function renderResult(text, hits) {
-      clearChildren(outputEl);
-      const nodes = highlightNodes(text, hits);
-      const wrap = document.createElement('div');
-      wrap.classList.add('fade-in');
-      nodes.forEach(n => wrap.appendChild(n));
-      outputEl.appendChild(wrap);
-      return Array.from(new Set(hits.map(h => h.toLowerCase().trim()).filter(Boolean)));
-    }
-
-    function renderGlossary(terms) {
-      clearChildren(glossaryEl);
-      if (!terms || terms.length === 0) {
-        const li = document.createElement('li');
-        const small = document.createElement('small');
-        small.className = 'muted';
-        appendText(small, 'No special terms detected.');
-        li.appendChild(small);
-        glossaryEl.appendChild(li);
-        return;
-      }
-      for (const t of terms) {
-        const def = (glossaryIndex && glossaryIndex[t]) ? glossaryIndex[t] : (LARGE_GLOSSARY[t] || null);
-        const li = document.createElement('li');
-        const title = document.createElement('strong'); appendText(title, t);
-        const div = document.createElement('div'); div.style.marginTop = '6px';
-        appendText(div, def ? def.simple : '(no local definition)');
-        li.appendChild(title);
-        li.appendChild(div);
-        if (def && def.note) {
-          const note = document.createElement('small');
-          note.className = 'muted';
-          note.style.display = 'block';
-          note.style.marginTop = '6px';
-          appendText(note, def.note);
-          li.appendChild(note);
-        }
-        glossaryEl.appendChild(li);
-      }
-    }
-
-    function showPopover(title, body) {
-      const existing = document.querySelector('.popover');
-      if (existing) existing.remove();
-      const tpl = popoverTpl.content.cloneNode(true);
-      const pop = tpl.querySelector('.popover');
-      pop.querySelector('.title').textContent = title;
-      pop.querySelector('.body').textContent = body;
-      pop.querySelector('.close').addEventListener('click', () => pop.remove());
-      document.body.appendChild(pop);
-      pop.querySelector('.close').focus();
-    }
-
-    function explainTerm(term) {
-      const key = term.toLowerCase();
-      const def = (glossaryIndex && glossaryIndex[key]) ? glossaryIndex[key] : (LARGE_GLOSSARY[key] || null);
-      if (def) showPopover(term, (def.simple || '') + (def.note ? ('\n\n' + def.note) : ''));
-      else showPopover(term, 'No local definition found. Upload or paste a glossary JSON to merge more definitions.');
-    }
-
-    function showTermTooltip(ev, term) {
-      const key = term.toLowerCase();
-      const def = (glossaryIndex && glossaryIndex[key]) ? glossaryIndex[key] : (LARGE_GLOSSARY[key] || null);
-      termTooltip.textContent = def ? (def.simple + (def.note ? '\n' + def.note : '')) : 'No local definition yet.';
-      termTooltip.classList.add('visible');
-      positionTooltip(ev);
-    }
-    function hideTermTooltip() { termTooltip.classList.remove('visible'); }
-    function positionTooltip(ev) {
-      const rect = termTooltip.getBoundingClientRect();
-      let x = ev.clientX + 12, y = ev.clientY + 16;
-      if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width - 12;
-      if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 12;
-      termTooltip.style.left = x + 'px'; termTooltip.style.top = y + 'px';
-    }
-    document.addEventListener('mousemove', (ev) => {
-      if (termTooltip.classList.contains('visible')) positionTooltip(ev);
-    });
-
-    function renderVisualSummary(text) {
-      if (!visualContainer.classList.contains('active')) return;
-      clearChildren(visualContainer);
-      const sentences = text.split(/(?<=[.!?])/).map(s => s.trim()).filter(Boolean);
-      sentences.forEach((sentence, idx) => {
-        const card = document.createElement('div');
-        card.className = 'visual-card fade-in';
-        const title = document.createElement('strong'); appendText(title, `Span ${idx + 1}`);
-        const p = document.createElement('p'); p.className = 'muted'; appendText(p, sentence);
-        card.appendChild(title); card.appendChild(p); visualContainer.appendChild(card);
-      });
-    }
-
-    function friendlyMessage(message) {
-      mascotText.textContent = message;
-      mascotBubble.classList.add('bounce');
-      setTimeout(() => mascotBubble.classList.remove('bounce'), 800);
-    }
-
-    function summarizeAndRender(mode) {
-      outputShell.classList.add('bridge-flow');
-      setTimeout(() => outputShell.classList.remove('bridge-flow'), 600);
-      if (mode === 'line') return simplifyLineByLine();
-      return simplifyAll(mode);
-    }
-
-    function runSimplifyFlow(mode='simple') {
-      const messages = ['Bridging complexity…','Translating…','Clarity ahead 🚀'];
-      progressOverlay.classList.add('active');
-      let step = 0;
-      const advance = () => {
-        if (step < messages.length) {
-          progressText.textContent = messages[step];
-          progressBar.style.width = ((step+1)/messages.length*100) + '%';
-          step++;
-          setTimeout(advance, 420);
-        } else {
-          summarizeAndRender(mode);
-          setTimeout(() => {
-            progressOverlay.classList.remove('active');
-            progressBar.style.width = '0%';
-          }, 320);
-        }
-      };
-      advance();
-    }
-
-    function simplifyAll(mode='simple') {
-      const raw = inputEl.value || '';
-      const preset = presetSelect.value;
-      const lvl = parseInt(difficulty.value, 10) || 1;
-      const presetKey = (preset === '5') ? 'eli5' : preset;
-      const tone = toneSelect.value;
-      const { simplified, hits } = simplifyForPreset(raw, presetKey, lvl, tone);
-      const detected = renderResult(simplified, hits);
-      renderVisualSummary(simplified);
-      renderGlossary(detected);
-      modePill.textContent = `Mode: ${mode === 'simple' ? 'Simple' : (mode === 'line' ? 'Line-by-line' : mode)}`;
-      termPill.textContent = `Terms: ${detected.length}`;
-      statusPill.textContent = 'Simplified';
-      friendlyMessage('✅ Done! You just turned legalese into human.');
-      return { raw, simplified, detected, hits };
-    }
-
-    function simplifyLineByLine() {
-      const raw = inputEl.value || '';
-      const sentences = raw.match(/[^.!?]+[.!?]*/g) || [raw];
-      clearChildren(outputEl);
-      let allHits = [];
-      const preset = presetSelect.value;
-      const presetKey = (preset === '5') ? 'eli5' : preset;
-      const lvl = parseInt(difficulty.value,10) || 1;
-      const tone = toneSelect.value;
-      sentences.forEach(s => {
-        const block = document.createElement('div');
-        block.style.marginBottom = '18px';
-        const smallO = document.createElement('small'); smallO.className = 'muted'; appendText(smallO,'Original');
-        const orig = document.createElement('div'); appendText(orig, s.trim());
-        const smallS = document.createElement('small'); smallS.className = 'muted'; smallS.style.marginTop='6px'; appendText(smallS,'Simplified');
-        const simpWrap = document.createElement('div'); simpWrap.style.marginTop='6px';
-        const { simplified, hits } = simplifyForPreset(s, presetKey, lvl, tone);
-        const nodes = highlightNodes(simplified, hits);
-        nodes.forEach(n => simpWrap.appendChild(n));
-        block.appendChild(smallO); block.appendChild(orig); block.appendChild(smallS); block.appendChild(simpWrap);
-        outputEl.appendChild(block);
-        allHits = allHits.concat(hits);
-      });
-      const detected = Array.from(new Set(allHits.map(h => h.toLowerCase().trim())));
-      renderVisualSummary(raw);
-      renderGlossary(detected);
-      modePill.textContent = 'Mode: Line-by-line';
-      termPill.textContent = `Terms: ${detected.length}`;
-      statusPill.textContent = 'Line-by-line view';
-      friendlyMessage('🔍 Each sentence now has a twin across the bridge.');
-      return { raw, simplified: raw, detected, hits: allHits };
-    }
-
-    btnSimplify.addEventListener('click', () => runSimplifyFlow('simple'));
-    btnLine.addEventListener('click', () => runSimplifyFlow('line'));
-    btnCopy.addEventListener('click', async () => {
-      const r = simplifyAll();
-      try { await navigator.clipboard.writeText(r.simplified); alert('Copied simplified text.'); } catch { alert('Could not copy.'); }
-    });
-
-    btnTxt.addEventListener('click', () => {
-      const r = simplifyAll();
-      const blob = new Blob([r.simplified], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'paperbridge-simplified.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    });
-
-    btnPdf.addEventListener('click', () => {
-      const r = simplifyAll();
-      const w = window.open('', '_blank', 'noopener');
-      if (!w) { alert('Unable to open print window.'); return; }
-      const doc = w.document;
-      doc.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PaperBridge — PDF</title>');
-      doc.write('<style>body{font-family:Inter,system-ui,Arial;color:#111;margin:28px}pre{white-space:pre-wrap;font-family:inherit;font-size:14px}h1{font-size:18px;margin-bottom:8px}</style>');
-      doc.write('</head><body><h1>PaperBridge — Simplified</h1><pre>' + escapeHtml(r.simplified) + '</pre></body></html>');
-      doc.close();
-      setTimeout(()=>w.print(), 300);
-    });
-
-    btnShare.addEventListener('click', async () => {
-      const r = simplifyAll();
-      try {
-        const compressed = LZString.compressToEncodedURIComponent(r.simplified);
-        const url = location.origin + location.pathname + '?t=' + compressed;
-        await navigator.clipboard.writeText(url);
-        alert('Share link copied (compressed).');
-      } catch { alert('Could not create share link.'); }
-    });
-
-    btnClear.addEventListener('click', () => {
-      inputEl.value = '';
-      clearChildren(outputEl);
-      glossaryEl.innerHTML = '<li><small class="muted">No special terms detected.</small></li>';
-      termPill.textContent = 'Terms: 0';
-      statusPill.textContent = 'Cleared';
-      friendlyMessage('🧼 Fresh slate ready. Paste when you are!');
-    });
-
-    difficulty.addEventListener('input', () => {
-      const val = parseInt(difficulty.value,10);
-      diffLabel.textContent = val===1 ? 'Simple' : (val===2 ? 'Medium' : 'Strong');
-    });
-    difficulty.addEventListener('change', () => simplifyAll());
-    presetSelect.addEventListener('change', () => simplifyAll());
-    toneSelect.addEventListener('change', () => simplifyAll());
-
-    visualToggle.addEventListener('click', () => {
-      visualContainer.classList.toggle('active');
-      visualToggle.classList.toggle('active');
-      if (visualContainer.classList.contains('active')) {
-        friendlyMessage('🖼️ Visual mode on. Cards ahead!');
-        renderVisualSummary(outputEl.textContent || inputEl.value);
-      } else {
-        friendlyMessage('Visual cards tucked away.');
-      }
-    });
-
-    surpriseBtn.addEventListener('click', () => {
-      const presetOptions = Array.from(presetSelect.options);
-      presetSelect.selectedIndex = Math.floor(Math.random() * presetOptions.length);
-      const tones = ['plain','professional','casual'];
-      toneSelect.value = tones[Math.floor(Math.random()*tones.length)];
-      const lvl = Math.floor(Math.random()*3)+1;
-      difficulty.value = lvl;
-      diffLabel.textContent = lvl===1 ? 'Simple' : (lvl===2 ? 'Medium' : 'Strong');
-      runSimplifyFlow('simple');
-      friendlyMessage('🎲 Surprise preset loaded!');
-    });
-
-    function speak(text) {
-      if (!('speechSynthesis' in window)) { alert('Speech synthesis is not supported in this browser.'); return; }
-      speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.pitch = 1; utter.rate = 1;
-      utter.voice = speechSynthesis.getVoices().find(v => v.lang.startsWith('en')) || null;
-      speechSynthesis.speak(utter);
-    }
-    btnReadAloud.addEventListener('click', () => {
-      const r = simplifyAll();
-      speak(r.simplified);
-      friendlyMessage('🔊 Reading your summary aloud.');
-    });
-
-    audioToggle.addEventListener('click', async () => {
-      if (audioToggle.getAttribute('aria-pressed') === 'true') {
-        audioToggle.setAttribute('aria-pressed', 'false');
-        audioToggle.textContent = '🎧 Lo-fi off';
-        lofi.pause();
-        friendlyMessage('🎧 Quiet mode. Focus on the words.');
-        return;
-      }
-      audioToggle.setAttribute('aria-pressed', 'true');
-      audioToggle.textContent = '🎧 Lo-fi on';
-      try { await lofi.play(); friendlyMessage('🎶 Lo-fi vibes coming right up.'); }
-      catch { friendlyMessage('⚠️ Tap again to allow audio.'); }
-    });
-
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        lofi.pause();
-        audioToggle.setAttribute('aria-pressed', 'false');
-        audioToggle.textContent = '🎧 Lo-fi off';
-      }
-    });
-
-    function recordTheme(theme) {
-      localStorage.setItem('paperbridge:theme', JSON.stringify(theme));
-    }
-
-    const DEFAULT_THEME = {
-      mode:'dark',
-      vars:{ '--bg':'#0f172a','--card':'rgba(15,23,42,0.65)','--text':'#f1f5ff','--accent':'#8b5cf6','--border':'rgba(148,163,184,0.28)','--pill-bg':'rgba(99,102,241,0.15)','--pill-border':'rgba(129,140,248,0.38)','--glow':'#7dd3fc' }
-    };
-    const LIGHT_THEME = {
-      mode:'light',
-      vars:{ '--bg':'#f6f7ff','--card':'rgba(255,255,255,0.72)','--text':'#11142a','--accent':'#4f46e5','--border':'rgba(79,70,229,0.18)','--pill-bg':'rgba(79,70,229,0.12)','--pill-border':'rgba(129,140,248,0.42)','--glow':'#38bdf8' }
-    };
-    const DARK_THEME = JSON.parse(JSON.stringify(DEFAULT_THEME));
-
-    const THEME_PRESETS = {
-      ocean: { mode:'dark', vars:{'--bg':'#06162c','--card':'rgba(9,26,52,0.72)','--text':'#e0f7ff','--accent':'#06b6d4','--border':'rgba(45,154,202,0.28)','--pill-bg':'rgba(6,182,212,0.18)','--pill-border':'rgba(6,182,212,0.35)','--glow':'#06b6d4'} },
-      minimal: { mode:'light', vars:{'--bg':'#fdfdfc','--card':'rgba(255,255,255,0.86)','--text':'#111827','--accent':'#4b5563','--border':'rgba(148,163,184,0.25)','--pill-bg':'rgba(148,163,184,0.16)','--pill-border':'rgba(148,163,184,0.32)','--glow':'#94a3b8'} },
-      sunset: { mode:'dark', vars:{'--bg':'#1b0f2b','--card':'rgba(39,15,61,0.72)','--text':'#fde4ff','--accent':'#f472b6','--border':'rgba(244,114,182,0.28)','--pill-bg':'rgba(244,114,182,0.18)','--pill-border':'rgba(244,114,182,0.35)','--glow':'#fb7185'} },
-      cyber: { mode:'dark', vars:{'--bg':'#020617','--card':'rgba(15,23,42,0.82)','--text':'#cffafe','--accent':'#22d3ee','--border':'rgba(34,211,238,0.3)','--pill-bg':'rgba(34,211,238,0.18)','--pill-border':'rgba(34,211,238,0.32)','--glow':'#22d3ee'} }
-    };
-
-    function applyTheme(theme) {
-      Object.entries(theme.vars).forEach(([k,v]) => document.documentElement.style.setProperty(k,v));
-      document.documentElement.setAttribute('data-theme', theme.mode === 'light' ? 'light' : 'dark');
-      colorInputs.forEach(inp => {
-        const key = inp.dataset.var;
-        if (key && theme.vars[key]) inp.value = theme.vars[key];
-      });
-      recordTheme(theme);
-    }
-
-    function loadTheme() {
-      try {
-        const raw = localStorage.getItem('paperbridge:theme');
-        if (!raw) { applyTheme(DEFAULT_THEME); return; }
-        applyTheme(JSON.parse(raw));
-      } catch { applyTheme(DEFAULT_THEME); }
-    }
-    loadTheme();
-
-    function loadSavedThemes() {
-      try {
-        const raw = localStorage.getItem('paperbridge:savedThemes');
-        if (!raw) return [];
-        return JSON.parse(raw);
-      } catch { return []; }
-    }
-    function saveThemeList(list) { localStorage.setItem('paperbridge:savedThemes', JSON.stringify(list)); }
-    function renderSavedThemes() {
-      const themes = loadSavedThemes();
-      clearChildren(savedThemeList);
-      if (!themes.length) {
-        const li = document.createElement('li');
-        const small = document.createElement('small'); small.className = 'muted'; appendText(small, 'No saved themes yet. Craft one and press Save.');
-        li.appendChild(small); savedThemeList.appendChild(li); return;
-      }
-      themes.forEach((item, idx) => {
-        const li = document.createElement('li');
-        li.style.display = 'flex'; li.style.justifyContent = 'space-between'; li.style.alignItems = 'center'; li.style.gap = '12px';
-        const name = document.createElement('span'); appendText(name, item.name);
-        const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '8px';
-        const applyBtn = document.createElement('button'); applyBtn.className = 'ghost'; applyBtn.textContent = 'Apply';
-        applyBtn.addEventListener('click', () => applyTheme(item.theme));
-        const exportBtn = document.createElement('button'); exportBtn.className = 'ghost'; exportBtn.textContent = 'Export';
-        exportBtn.addEventListener('click', () => exportTheme(item));
-        const deleteBtn = document.createElement('button'); deleteBtn.className = 'ghost'; deleteBtn.textContent = 'Delete';
-        deleteBtn.addEventListener('click', () => {
-          const list = loadSavedThemes(); list.splice(idx, 1); saveThemeList(list); renderSavedThemes();
-        });
-        row.appendChild(applyBtn); row.appendChild(exportBtn); row.appendChild(deleteBtn);
-        li.appendChild(name); li.appendChild(row); savedThemeList.appendChild(li);
-      });
-    }
-    renderSavedThemes();
-
-    themePresetButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const preset = btn.dataset.themePreset;
-        const theme = THEME_PRESETS[preset];
-        if (theme) { applyTheme(theme); friendlyMessage('🎨 ' + btn.textContent.trim() + ' applied.'); }
-      });
-    });
-    themeRandom.addEventListener('click', () => {
-      const keys = Object.keys(THEME_PRESETS);
-      const choice = THEME_PRESETS[keys[Math.floor(Math.random()*keys.length)]];
-      applyTheme(choice); friendlyMessage('✨ Random theme engaged.');
-    });
-
-    themeSaveBtn.addEventListener('click', () => {
-      const name = (themeNameInput.value || '').trim();
-      if (!name) { alert('Name your theme before saving.'); return; }
-      const theme = {
-        mode: document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
-        vars: {}
-      };
-      colorInputs.forEach(inp => {
-        const key = inp.dataset.var;
-        if (key) theme.vars[key] = inp.value;
-      });
-      theme.vars['--glow'] = getComputedStyle(document.documentElement).getPropertyValue('--glow').trim() || '#7dd3fc';
-      const list = loadSavedThemes(); list.push({ name, theme }); saveThemeList(list); renderSavedThemes();
-      themeNameInput.value = ''; friendlyMessage('💾 Theme saved. Share it anytime.');
-    });
-
-    function exportTheme(item) {
-      const data = JSON.stringify(item, null, 2);
-      const blob = new Blob([data], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = item.name.replace(/\s+/g,'-').toLowerCase() + '.theme';
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    }
-
-    themeReset.addEventListener('click', () => { applyTheme(DEFAULT_THEME); friendlyMessage('Reset to default glow.'); });
-    themeDark.addEventListener('click', () => { applyTheme(DARK_THEME); friendlyMessage('🌙 Night shift activated.'); });
-    themeLight.addEventListener('click', () => { applyTheme(LIGHT_THEME); friendlyMessage('☀️ Daylight mode restored.'); });
-
-    colorInputs.forEach(inp => {
-      inp.addEventListener('input', () => {
-        const key = inp.dataset.var; if (!key) return;
-        document.documentElement.style.setProperty(key, inp.value);
-        const current = {
-          mode: document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
-          vars: {}
-        };
-        ['--bg','--card','--text','--accent','--border','--pill-bg','--pill-border','--glow'].forEach(k => {
-          current.vars[k] = getComputedStyle(document.documentElement).getPropertyValue(k).trim();
-        });
-        recordTheme(current);
-      });
-    });
-
-    function togglePanel(open) {
-      if (open) { themePanel.classList.remove('hidden'); themePanel.setAttribute('aria-hidden','false'); }
-      else { themePanel.classList.add('hidden'); themePanel.setAttribute('aria-hidden','true'); }
-    }
-    const openThemeBtn = document.getElementById('openTheme');
-    openThemeBtn.addEventListener('click', () => togglePanel(themePanel.classList.contains('hidden')));
-    gear.addEventListener('click', () => togglePanel(themePanel.classList.contains('hidden')));
-    themeClose.addEventListener('click', () => togglePanel(false));
-
-    themeCopy.addEventListener('click', async () => {
-      try {
-        const data = localStorage.getItem('paperbridge:theme');
-        if (!data) throw new Error('No theme');
-        await navigator.clipboard.writeText(data);
-        alert('Theme JSON copied.');
-      } catch { alert('Could not copy theme JSON.'); }
-    });
-
-    themePaste.addEventListener('click', async () => {
-      try {
-        const text = await navigator.clipboard.readText();
-        const parsed = JSON.parse(text);
-        applyTheme(parsed);
-        friendlyMessage('📋 Theme pasted from clipboard.');
-      } catch { alert('Clipboard did not contain valid theme JSON.'); }
-    });
-
-    themeExport.addEventListener('click', () => {
-      const data = localStorage.getItem('paperbridge:theme');
-      if (!data) { alert('No theme to export.'); return; }
-      exportTheme({ name: 'paperbridge-theme', theme: JSON.parse(data) });
-    });
-
-    loadExternalGlossary.addEventListener('click', () => {
-      const url = externalGlossaryUrlInput.value.trim();
-      fetchAndLoadExternalGlossary(url).catch(() => alert('Could not load glossary.'));
-    });
-    clearExternalGlossary.addEventListener('click', () => {
-      externalGlossaryUrlInput.value = '';
-      statusPill.textContent = 'Glossary URL cleared';
-    });
-
-    saveAiKeyBtn.addEventListener('click', () => {
-      const key = aiKeyInput.value.trim();
-      if (!key) { alert('Paste an API key first.'); return; }
-      localStorage.setItem('paperbridge:aiKey', key);
-      alert('API key stored locally.');
-    });
-    clearAiKeyBtn.addEventListener('click', () => {
-      localStorage.removeItem('paperbridge:aiKey');
-      aiKeyInput.value = '';
-      alert('API key cleared.');
-    });
-    const storedKey = localStorage.getItem('paperbridge:aiKey');
-    if (storedKey) aiKeyInput.value = storedKey;
-
-    glossaryUpload.addEventListener('change', (e) => {
-      const f = e.target.files && e.target.files[0];
-      if (!f) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const parsed = JSON.parse(String(reader.result || ''));
-          Object.assign(LARGE_GLOSSARY, parsed);
-          buildGlossaryIndex();
-          alert('Glossary merged.');
-        } catch { alert('Invalid glossary JSON.'); }
-      };
-      reader.readAsText(f);
-    });
-
-    document.addEventListener('dragover', e => e.preventDefault());
-    document.addEventListener('drop', (e) => {
-      e.preventDefault();
-      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (!f) return;
-      if (!f.name.endsWith('.json')) return alert('Drop a .json glossary file.');
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const parsed = JSON.parse(reader.result);
-          Object.assign(LARGE_GLOSSARY, parsed);
-          buildGlossaryIndex();
-          alert('Glossary file merged.');
-        } catch { alert('Invalid JSON file'); }
-      };
-      reader.readAsText(f);
-    });
-
-    btnAI.addEventListener('click', async () => {
-  const raw = inputEl.value || '';
-  if (!raw.trim()) { alert('Paste some text first.'); return; }
-
-  statusPill.textContent = 'Calling PaperBridge Proxy…';
-  friendlyMessage('🤖 Crafting an AI-assisted rewrite.');
-
-  try {
-    const response = await fetch('https://paperbridge-proxy.vercel.app/api/rewrite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: raw,
-        tone: toneSelect.value
-      })
-    });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Rewrite failed');
-
-    inputEl.value = raw + '\n\n---\nAI rewrite:\n' + (data.rewrite || '').trim();
-    runSimplifyFlow('simple');
-  } catch (err) {
-    console.error(err);
-    alert('AI rewrite failed. Check your proxy or network.');
-    statusPill.textContent = 'AI failed';
-  }
-});
-
-      } catch (err) {
-        console.error(err);
-        alert('AI rewrite failed. Check your API key or network.');
-        statusPill.textContent = 'AI failed';
-      }
-    });
-
-    fileInput.addEventListener('change', (e) => {
-      const f = e.target.files && e.target.files[0];
-      if (!f) return;
-      const name = f.name.toLowerCase();
-      if (name.endsWith('.docx')) {
-        const reader = new FileReader();
-        reader.onload = function(ev) {
-          const ab = ev.target.result;
-          mammoth.extractRawText({arrayBuffer:ab}).then(result => {
-            inputEl.value = result.value || '';
-            runSimplifyFlow('simple');
-          }).catch(()=>{ alert('Could not parse docx.'); });
-        };
-        reader.readAsArrayBuffer(f);
-      } else if (name.endsWith('.pdf')) {
-        const reader = new FileReader();
-        reader.onload = async function(ev) {
-          const ab = ev.target.result;
-          try {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-            const loadingTask = pdfjsLib.getDocument({data:ab});
-            const pdf = await loadingTask.promise;
-            let text = '';
-            for (let i=1;i<=pdf.numPages;i++){
-              const page = await pdf.getPage(i);
-              const content = await page.getTextContent();
-              const strings = content.items.map(it => it.str);
-              text += strings.join(' ') + '\n\n';
-            }
-            inputEl.value = text;
-            runSimplifyFlow('simple');
-          } catch (err) {
-            console.error(err);
-            alert('Could not extract text from PDF. Consider converting to .docx or .txt.');
-          }
-        };
-        reader.readAsArrayBuffer(f);
-      } else {
-        const reader = new FileReader();
-        reader.onload = function(ev) {
-          inputEl.value = String(ev.target.result || '');
-          runSimplifyFlow('simple');
-        };
-        reader.readAsText(f);
-      }
-    });
-
-    btnMergeGlossary.addEventListener('click', () => {
-      if (!glossaryUpload.files || !glossaryUpload.files[0]) { alert('Choose a glossary JSON file first.'); return; }
-      glossaryUpload.dispatchEvent(new Event('change'));
-    });
-
-    document.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Escape' && !themePanel.classList.contains('hidden')) {
-        themePanel.classList.add('hidden'); themePanel.setAttribute('aria-hidden', 'true');
-      }
-    });
-
-    (function restoreFromURL(){
-      try {
-        const params = new URLSearchParams(location.search);
-        const t = params.get('t');
-        if (!t) return;
-        const decompressed = LZString.decompressFromEncodedURIComponent(t);
-        if (decompressed) {
-          clearChildren(outputEl);
-          const wrapper = document.createElement('div'); appendText(wrapper, decompressed);
-          outputEl.appendChild(wrapper);
-          statusPill.textContent = 'Shared result';
-          const { hits } = simplifyForPreset(decompressed, presetSelect.value === '5' ? 'eli5' : presetSelect.value, parseInt(difficulty.value,10), toneSelect.value);
-          const detected = Array.from(new Set(hits.map(h=>h.toLowerCase().trim())));
-          renderGlossary(detected);
-          modePill.textContent = 'Mode: Shared';
-          termPill.textContent = `Terms: ${detected.length}`;
-        }
-      } catch(e){}
-    })();
-
-    buildGlossaryIndex();
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          navLinks.forEach(link => {
-            link.classList.toggle('active', link.getAttribute('href').slice(1) === entry.target.id);
-          });
-        }
-      });
-    }, { threshold:0.5 });
-    ['home','simplify','themes','learn','about'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
-    });
-
-    const particlesCanvas = document.getElementById('particleCanvas');
-    const ctx = particlesCanvas.getContext('2d');
-    let particles = [];
-    let mouseX = 0, mouseY = 0;
-
-    function resizeCanvas() {
-      particlesCanvas.width = window.innerWidth;
-      particlesCanvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    function createParticles(count) {
-      particles = new Array(count).fill(0).map(() => ({
-        x: Math.random() * particlesCanvas.width,
-        y: Math.random() * particlesCanvas.height,
-        radius: Math.random() * 2 + 0.5,
-        alpha: Math.random() * 0.6 + 0.2,
-        speedX: (Math.random() - 0.5) * 0.4,
-        speedY: (Math.random() - 0.5) * 0.4
-      }));
-    }
-    createParticles(120);
-
-    window.addEventListener('mousemove', (ev) => { mouseX = ev.clientX; mouseY = ev.clientY; });
-
-    function animateParticles() {
-      ctx.clearRect(0,0,particlesCanvas.width, particlesCanvas.height);
-      particles.forEach(p => {
-        const dx = (mouseX / particlesCanvas.width - 0.5) * 0.6;
-        const dy = (mouseY / particlesCanvas.height - 0.5) * 0.6;
-        p.x += p.speedX + dx; p.y += p.speedY + dy;
-        if (p.x < 0) p.x = particlesCanvas.width;
-        if (p.x > particlesCanvas.width) p.x = 0;
-        if (p.y < 0) p.y = particlesCanvas.height;
-        if (p.y > particlesCanvas.height) p.y = 0;
-        ctx.beginPath(); ctx.fillStyle = `rgba(125,211,252,${p.alpha})`;
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fill();
-      });
-      requestAnimationFrame(animateParticles);
-    }
-    animateParticles();
-
-    const consoleArt = `
-    ╔══════════════════════════╗
-    ║  🌉 Welcome to PaperBridge ║
-    ║  Words meet understanding ║
-    ╚══════════════════════════╝
-    `;
-    Object.defineProperty(window, 'bridge', {
-      get() {
-        console.log(consoleArt);
-        console.log('Keep building connections.');
-        return 'PaperBridge';
-      },
-      configurable: true
-    });
-
-    heroTitle.addEventListener('animationend', () => {
-      heroTitle.classList.add('complete');
-    });
-
-    const QUOTES = [
-      'Clarity is kindness. Thanks for choosing it.',
-      'PaperBridge loves a good before-and-after story.',
-      'Small words can carry big ideas across.',
-      'Keep bridging. Someone on the other side is cheering.'
-    ];
-    setInterval(() => {
-      friendlyMessage(QUOTES[Math.floor(Math.random()*QUOTES.length)]);
-    }, 24000);
-
-    if (window.pdfjsLib) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-    }
-
-  })();
-  </script>
-</body>
-</html>
+diff --git a/index.html b/index.html
+index a0333a6c609718593071a4e3673b13b87801864a..1cd0c58613ceb42eabf13c5a769ee34be43c7956 100644
+--- a/index.html
++++ b/index.html
+@@ -1,203 +1,241 @@
+ <!doctype html>
+ <html lang="en">
+ <head>
+   <meta charset="utf-8" />
+   <meta name="viewport" content="width=device-width,initial-scale=1" />
++  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://storage.googleapis.com https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.pixabay.com; script-src 'self' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://storage.googleapis.com https://cdn.pixabay.com; media-src 'self' https://cdn.pixabay.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://api.openai.com;" />
++  <meta name="theme-color" content="#0f172a" />
+   <title>PaperBridge — Understand Every Form</title>
+   <meta name="description" content="PaperBridge helps you simplify, clarify, and humanize any document without leaving your browser." />
+   <meta property="og:title" content="PaperBridge — Understand Every Form">
+   <meta property="og:description" content="Simplify, clarify, and humanize any document with AI.">
+   <meta property="og:image" content="preview.png">
+   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23111f4d'/%3E%3Cpath d='M14 38c8-10 18-15 32-12' stroke='%23a78bfa' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M14 28c8-10 18-15 32-12' stroke='%236dd3ff' stroke-width='6' stroke-linecap='round' fill='none' opacity='.75'/%3E%3Ccircle cx='18' cy='38' r='4' fill='%236dd3ff'/%3E%3Ccircle cx='46' cy='26' r='4' fill='%23a78bfa'/%3E%3C/svg%3E" />
+ 
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
++  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap" />
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
++  <link rel="manifest" href="manifest.json">
+ 
+   <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
+-  <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+ 
+   <style>
+     :root {
+       --bg:#0f172a;
+       --bg-2:#1b1f3b;
+       --card:rgba(15,23,42,0.65);
+       --text:#f1f5ff;
+       --accent:#8b5cf6;
+       --accent-soft:rgba(139,92,246,0.25);
+       --border:rgba(148,163,184,0.28);
+       --pill-bg:rgba(99,102,241,0.15);
+       --pill-border:rgba(129,140,248,0.38);
+       --muted:rgba(226,232,255,0.7);
+       --radius:16px;
+       --shadow:0 24px 80px rgba(15,23,42,0.45);
+       --focus:rgba(139,92,246,0.35);
+       --glow:#7dd3fc;
+     }
+     :root[data-theme="light"] {
+       --bg:#f6f7ff;
+       --bg-2:#e7ebff;
+       --card:rgba(255,255,255,0.72);
+       --text:#11142a;
+       --accent:#4f46e5;
+       --accent-soft:rgba(79,70,229,0.18);
+       --border:rgba(79,70,229,0.18);
+       --pill-bg:rgba(79,70,229,0.12);
+       --pill-border:rgba(129,140,248,0.42);
+       --muted:rgba(71,85,105,0.7);
+       --shadow:0 20px 60px rgba(15,23,42,0.18);
+       --focus:rgba(99,102,241,0.22);
+       --glow:#38bdf8;
+     }
+     * { box-sizing:border-box; transition:background-color .4s,color .4s,border-color .4s,box-shadow .4s; }
+     html, body {
+       height:100%; margin:0;
+       font-family:'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+       background:var(--bg); color:var(--text); overflow-x:hidden; -webkit-font-smoothing:antialiased; position:relative;
+     }
+     body::before {
+       content:""; position:fixed; inset:0; z-index:-2;
+       background:radial-gradient(circle at 20% 20%, rgba(125,211,252,0.25), transparent 55%),
+                  radial-gradient(circle at 80% 10%, rgba(167,139,250,0.25), transparent 50%),
+                  radial-gradient(circle at 50% 80%, rgba(56,189,248,0.2), transparent 55%);
+       animation:aurora 18s ease-in-out infinite alternate;
+     }
++    @media (prefers-reduced-motion: reduce) {
++      * { animation: none !important; transition: none !important; }
++      body::before { animation: none !important; }
++      #particleCanvas { display: none !important; }
++    }
+     @keyframes aurora { 0%{transform:translate3d(-2%,-1%,0) scale(1.03);} 50%{transform:translate3d(2%,1%,0) scale(1.08);} 100%{transform:translate3d(-1%,2%,0) scale(1.02);} }
+ 
+     #particleCanvas { position:fixed; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; }
+ 
+     .floating-nav{
+       position:fixed; top:18px; left:50%; transform:translateX(-50%); width:min(1080px, calc(100% - 32px));
+       z-index:100; display:flex; align-items:center; justify-content:space-between; padding:12px 20px;
+-      border-radius:999px; backdrop-filter:blur(18px); background:rgba(11,15,32,0.55);
++      border-radius:999px; background:rgba(11,15,32,0.55);
+       border:1px solid rgba(148,163,184,0.22); box-shadow:0 24px 60px rgba(2,6,23,0.45);
+     }
+     .floating-nav .brand{ display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:.02em; }
+     .floating-nav .brand span.logo{ display:inline-flex; width:36px; height:36px; border-radius:50%; align-items:center; justify-content:center; background:linear-gradient(135deg, rgba(125,211,252,0.9), rgba(167,139,250,0.9)); color:#0f172a; font-weight:700; }
+     .floating-nav nav{ display:flex; gap:18px; }
+     .floating-nav a{ font-size:14px; text-decoration:none; color:var(--muted); padding:6px 12px; border-radius:999px; }
+     .floating-nav a.active,.floating-nav a:hover{ color:var(--text); background:rgba(99,102,241,0.15); }
+     .floating-nav .nav-actions{ display:flex; align-items:center; gap:10px; }
+ 
++    @supports ((backdrop-filter:blur(10px)) or (-webkit-backdrop-filter:blur(10px))) {
++      .floating-nav { backdrop-filter: blur(18px); }
++      .hero-content { backdrop-filter: blur(28px); }
++      .glass-panel { backdrop-filter: blur(22px); }
++      .progress-overlay { backdrop-filter: blur(14px); }
++    }
++
+     .wrap{ width:min(1100px, 92vw); margin:0 auto; position:relative; }
+     .hero{ min-height:92vh; display:flex; align-items:center; justify-content:center; text-align:center; }
+     .hero-content{
+-      padding:48px 38px; border-radius:32px; backdrop-filter:blur(28px);
++      padding:48px 38px; border-radius:32px;
+       background:linear-gradient(145deg, rgba(15,23,42,0.72), rgba(15,23,42,0.4));
+       border:1px solid rgba(148,163,184,0.18); box-shadow:0 30px 120px rgba(15,23,42,0.55);
+       max-width:780px; margin:120px auto 60px; position:relative; overflow:hidden;
+     }
+     .hero-content::after{ content:""; position:absolute; inset:0; background:radial-gradient(circle at 20% 20%, rgba(125,211,252,0.2), transparent 60%); pointer-events:none; }
+     .bridge-title{
+       font-family:'Playfair Display', serif; font-size:clamp(34px, 8vw, 68px); margin:0; letter-spacing:.02em; line-height:1.05;
+       display:flex; justify-content:center; gap:12px; flex-wrap:wrap;
+     }
+     .bridge-title span{ opacity:0; transform:translateY(18px); animation:bridgeReveal 1.8s ease forwards; }
+     .bridge-title span:nth-child(1){ animation-delay:0s; }
+     .bridge-title span:nth-child(2){ animation-delay:.18s; }
+     .bridge-title span:nth-child(3){ animation-delay:.36s; }
+     @keyframes bridgeReveal{ to{opacity:1; transform:translateY(0);} }
+     .tagline{ margin-top:18px; font-size:18px; color:var(--muted); }
+     .hero-video{ margin-top:32px; border-radius:24px; overflow:hidden; border:1px solid rgba(148,163,184,0.2); box-shadow:0 20px 80px rgba(15,23,42,0.45); position:relative; }
+     .hero-video::after{ content:"PaperBridge in motion"; position:absolute; bottom:12px; right:18px; padding:6px 14px; background:rgba(15,23,42,0.55); border-radius:999px; font-size:12px; color:var(--muted); border:1px solid rgba(148,163,184,0.2); }
+     video.loop-demo{ width:100%; max-height:320px; object-fit:cover; filter:saturate(1.15) brightness(1.05); }
+ 
+     .cta-row{ margin-top:30px; display:flex; justify-content:center; gap:16px; flex-wrap:wrap; }
+ 
+     button{
+       border:none; border-radius:12px;
+       background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, var(--glow)));
+       color:#fff; padding:12px 20px; font-weight:600; cursor:pointer; box-shadow:0 18px 40px rgba(99,102,241,0.35);
+       transition:transform .2s, box-shadow .2s, background .4s;
+     }
+     button:hover{ transform:translateY(-2px); box-shadow:0 26px 60px rgba(99,102,241,0.38); }
+     button.secondary{ background:rgba(15,23,42,0.02); color:var(--text); border:1px solid var(--border); box-shadow:none; }
+     button.ghost{ background:transparent; color:var(--muted); border:1px solid transparent; box-shadow:none; }
+     .ai-btn{ background:linear-gradient(135deg,#06b6d4,#7c3aed); color:#fff; }
+     button.glow{ box-shadow:0 0 40px rgba(139,92,246,0.4); }
+     button:focus-visible{ outline:3px solid var(--focus); outline-offset:3px; }
+ 
+     main{ position:relative; padding-bottom:160px; }
+     .section-title{ font-size:32px; margin:0 0 12px; letter-spacing:.02em; }
+     .section-lead{ margin:0 0 28px; color:var(--muted); font-size:16px; }
+ 
+-    .glass-panel{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); backdrop-filter:blur(22px); box-shadow:var(--shadow); overflow:hidden; }
++    .glass-panel{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+     .glass-panel .pad{ padding:24px; }
+ 
+     .layout-grid{ display:grid; grid-template-columns:1fr; gap:22px; }
+     @media(min-width:1020px){ .layout-grid{ grid-template-columns:1.05fr 1fr; } }
+ 
+     textarea, input[type="text"], input[type="password"], select{
+       width:100%; border:1px solid rgba(148,163,184,0.28); border-radius:16px; padding:16px;
+       background:color-mix(in srgb, var(--card) 88%, rgba(15,23,42,0.05)); color:var(--text); font-family:"Inter", system-ui;
+     }
+     textarea{ min-height:220px; resize:vertical; }
+ 
+     .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+     .pill{ display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:999px; background:var(--pill-bg); border:1px solid var(--pill-border); color:var(--text); font-size:13px; }
+ 
+     .result-box{
+       min-height:160px; padding:18px; border-radius:18px; border:1px solid rgba(148,163,184,0.25);
+       background:rgba(15,23,42,0.25); overflow:auto; font-size:16px; line-height:1.6;
+     }
+     mark.repl{ background:linear-gradient(135deg, rgba(125,211,252,0.3), rgba(129,140,248,0.35)); border-radius:8px; padding:0 6px; cursor:pointer; }
+ 
++    .sentence-chunk{ display:inline; position:relative; padding:0 2px; }
++    .sentence-chunk.highlighted, .sentence-block.highlighted{ background:rgba(139,92,246,0.18); border-radius:6px; transition:background .3s; }
++
++    .input-metrics{ margin-top:8px; display:flex; align-items:center; justify-content:space-between; font-size:13px; color:var(--muted); }
++    .input-metrics .warn{ color:#f97316; font-weight:600; }
++    .cta-inline{ margin-top:18px; display:flex; gap:10px; flex-wrap:wrap; }
++
++    .shortcut-hint{ font-size:12px; color:var(--muted); margin-left:auto; margin-right:auto; margin-top:8px; text-align:center; }
++
++    .contrast-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-top:12px; }
++    .contrast-card{ padding:12px; border-radius:12px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.2); display:flex; flex-direction:column; gap:6px; }
++    .contrast-badge{ align-self:flex-start; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:600; }
++    .contrast-badge.aaa{ background:rgba(16,185,129,0.18); color:#34d399; border:1px solid rgba(16,185,129,0.45); }
++    .contrast-badge.aa{ background:rgba(59,130,246,0.18); color:#60a5fa; border:1px solid rgba(59,130,246,0.45); }
++    .contrast-badge.fail{ background:rgba(239,68,68,0.18); color:#f87171; border:1px solid rgba(239,68,68,0.45); }
++
++    .shortcut-pop{ max-width:360px; }
++
++    .visual-card.highlight{ outline:2px solid var(--accent); }
++
++    .mode-toggle-row{ display:flex; align-items:center; gap:8px; font-size:13px; margin-top:12px; color:var(--muted); }
++
++    .read-controls{ display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; align-items:center; font-size:13px; color:var(--muted); }
++
+     .out{ background:rgba(15,23,42,0.32); border-radius:24px; padding:18px; border:1px solid rgba(148,163,184,0.25); box-shadow:inset 0 0 0 1px rgba(148,163,184,0.15); }
+ 
+     ul.list{ list-style:none; padding:0; margin:0; }
+     ul.list li{ padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.2); background:rgba(15,23,42,0.18); margin-bottom:8px; }
+ 
+     footer{ margin-top:80px; color:var(--muted); text-align:center; font-size:13px; }
+ 
+     .status-stack{ display:flex; align-items:center; gap:8px; }
+     .visual-toggle{ display:flex; align-items:center; gap:8px; font-size:14px; color:var(--muted); }
+     .visual-board{ display:none; margin-top:18px; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; }
+     .visual-board.active{ display:grid; }
+     .visual-card{ padding:18px; border-radius:18px; background:rgba(15,23,42,0.32); border:1px solid rgba(148,163,184,0.2); box-shadow:0 20px 50px rgba(15,23,42,0.35); }
+ 
+     .gear{
+       position:fixed; right:20px; bottom:20px; z-index:120; width:56px; height:56px; border-radius:999px;
+       display:flex; align-items:center; justify-content:center; background:rgba(15,23,42,0.6);
+       border:1px solid rgba(148,163,184,0.25); box-shadow:0 24px 60px rgba(15,23,42,0.45); cursor:pointer;
+     }
+     .panel{
+       position:fixed; right:20px; bottom:92px; z-index:110; width:420px; max-width:calc(100% - 32px);
+       background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; box-shadow:var(--shadow);
+       transform-origin:100% 100%; transition:transform .2s, opacity .2s;
+     }
+     .panel.hidden{ opacity:0; transform:translateY(6px) scale(.96); pointer-events:none; }
+     .panel .row{ margin-top:8px; }
+     .panel input[type="color"]{ width:48px; height:32px; border:none; padding:0; background:none; cursor:pointer; }
+ 
+     .popover{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:150; max-width:680px; width:92%; background:var(--card); border:1px solid var(--border); padding:18px; border-radius:16px; box-shadow:var(--shadow); }
+     .popover .close{ position:absolute; right:8px; top:8px; border:none; background:transparent; color:var(--muted); cursor:pointer; }
+ 
+     .fileRow{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+     .fileRow input[type="file"]{ border:1px dashed rgba(148,163,184,0.35); padding:10px; border-radius:12px; background:rgba(15,23,42,0.2); color:var(--muted); }
+ 
+-    .progress-overlay{ position:fixed; inset:0; background:rgba(7,10,20,0.72); backdrop-filter:blur(14px); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:200; opacity:0; pointer-events:none; transition:opacity .4s; }
++    .progress-overlay{ position:fixed; inset:0; background:rgba(7,10,20,0.72); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:200; opacity:0; pointer-events:none; transition:opacity .4s; }
+     .progress-overlay.active{ opacity:1; pointer-events:auto; }
+     .progress-box{ width:min(440px, 92vw); background:rgba(15,23,42,0.8); border-radius:22px; padding:28px; border:1px solid rgba(148,163,184,0.25); text-align:center; box-shadow:0 24px 80px rgba(15,23,42,0.6); }
+     .progress-bar{ height:6px; width:100%; border-radius:999px; background:rgba(148,163,184,0.18); overflow:hidden; margin-top:18px; }
+     .progress-bar span{ display:block; height:100%; width:0; background:linear-gradient(135deg, rgba(125,211,252,0.8), rgba(129,140,248,0.9)); transition:width .4s ease; }
+ 
+     .mascot{
+       position:fixed; bottom:28px; left:28px; max-width:260px; background:rgba(15,23,42,0.65);
+       border:1px solid rgba(148,163,184,0.22); border-radius:18px 18px 18px 6px; padding:16px 20px;
+       box-shadow:0 18px 60px rgba(15,23,42,0.45); display:flex; gap:12px; align-items:flex-start; z-index:90;
+     }
+     .mascot .avatar{ font-size:22px; }
+     .mascot.bounce{ animation:mascotBounce .8s ease; }
+     @keyframes mascotBounce{ 0%{transform:translateY(0);} 30%{transform:translateY(-6px);} 60%{transform:translateY(2px);} 100%{transform:translateY(0);} }
+ 
+     .term-tooltip{
+       position:fixed; padding:12px 16px; background:rgba(15,23,42,0.85); border:1px solid rgba(148,163,184,0.28);
+       color:var(--text); border-radius:12px; font-size:13px; max-width:260px; pointer-events:none;
+       opacity:0; transform:translateY(6px); transition:opacity .25s, transform .25s; z-index:150;
+     }
+     .term-tooltip.visible{ opacity:1; transform:translateY(0); }
+ 
+     .themes-grid{ display:grid; gap:18px; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); margin-top:32px; }
+     .theme-card{ padding:18px; border-radius:18px; border:1px solid rgba(148,163,184,0.2); background:rgba(15,23,42,0.25); }
+     .quote{ margin-top:80px; font-family:'Playfair Display', serif; font-size:24px; color:var(--muted); text-align:center; }
+     audio{ display:none; }
+@@ -224,77 +262,82 @@
+       <span class="logo">🌉</span>
+       <span>PaperBridge</span>
+     </div>
+     <nav aria-label="Primary">
+       <a href="#home" class="active">Home</a>
+       <a href="#simplify">Simplify</a>
+       <a href="#themes">Themes</a>
+       <a href="#learn">Learn</a>
+       <a href="#about">About</a>
+     </nav>
+     <div class="nav-actions">
+       <button id="audioToggle" class="ghost" aria-pressed="false">🎧 Lo-fi off</button>
+       <button id="openTheme" class="secondary">Theme Lab</button>
+     </div>
+   </header>
+ 
+   <main>
+     <section id="home" class="hero">
+       <div class="hero-content">
+         <h1 class="bridge-title"><span>Paper</span><span>Bridge</span><span>Where language meets clarity.</span></h1>
+         <p class="tagline">Simplify any document. Understand everything. A calm space for turning complex forms into human language.</p>
+ 
+         <div class="cta-row">
+           <button class="glow" onclick="document.querySelector('#simplify').scrollIntoView({behavior:'smooth'});">Start simplifying</button>
+           <button class="secondary" onclick="document.querySelector('#learn').scrollIntoView({behavior:'smooth'});">Why clarity matters</button>
++          <button id="pasteCta" class="ghost">Paste to start</button>
+         </div>
+ 
++        <div class="shortcut-hint">Press ? for keyboard shortcuts.</div>
++
+         <div class="hero-video" aria-hidden="true">
+-          <video class="loop-demo" autoplay muted loop playsinline>
++          <video class="loop-demo" autoplay muted loop playsinline loading="lazy" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">
+             <source src="https://storage.googleapis.com/coverr-main/mp4/Mt_Baker.mp4" type="video/mp4" />
+           </video>
+         </div>
+       </div>
+     </section>
+ 
+     <section id="simplify" class="wrap" aria-labelledby="simplifyTitle">
+       <div class="glass-panel">
+         <div class="pad">
+           <div class="status-stack">
+             <div class="pill" id="statusPill">Ready</div>
+             <div class="pill" id="modePill">Mode: Simple</div>
+             <div class="pill" id="termPill">Terms: 0</div>
++            <div class="pill" id="privacyPill" style="display:none;">🔒 Private mode</div>
+           </div>
+ 
+           <h2 class="section-title" id="simplifyTitle">Simplify with confidence</h2>
+           <p class="section-lead">Upload or paste any document. Watch as the dense text gently flows across the PaperBridge.</p>
+ 
+           <div class="layout-grid">
+             <section class="glass-panel" style="background:rgba(15,23,42,0.4);">
+               <div class="pad">
+                 <label><strong>Paste or upload form text</strong></label>
+                 <textarea id="input" aria-label="Paste form text">By signing this form, the applicant hereby consents to disclose their SIN pursuant to the program assessment. Notwithstanding any other provision herein, failure to remit sufficient documentation may render the application void.</textarea>
++                <div class="input-metrics" id="inputMetrics" aria-live="polite"></div>
+ 
+                 <div class="fileRow row" style="margin-top:12px;">
+                   <input id="fileInput" type="file" accept=".txt,.md,.json,.docx,.pdf" aria-label="Upload text file (.txt, .md, .json, .docx, .pdf)">
+                   <div class="muted">Upload .txt/.md/.docx/.pdf. JSON merges to glossary if formatted as term → {simple,note}.</div>
+                 </div>
+ 
+                 <div class="row" style="margin-top:12px;">
+                   <input id="glossaryUpload" type="file" accept=".json" aria-label="Upload glossary JSON" />
+                   <button id="btnMergeGlossary" class="ghost">Merge glossary</button>
+                   <div class="muted" style="font-size:13px">Expand your term library instantly.</div>
+                 </div>
+ 
+                 <div class="row" style="margin-top:16px; justify-content:space-between;">
+                   <div class="row">
+                     <button id="btnSimplify">Simplify</button>
+                     <button id="btnLine" class="secondary">Line-by-line</button>
+                     <button id="btnCopy" class="ghost">Copy simplified</button>
+                     <button id="btnAI" class="ai-btn" title="AI-assisted rewrite">AI Rewrite</button>
+                     <button id="btnReadAloud" class="ghost">🔊 Read aloud</button>
+                   </div>
+                   <div class="row">
+                     <label class="muted" style="font-size:13px">Tone</label>
+                     <select id="toneSelect" aria-label="Tone select" style="min-width:160px;">
+                       <option value="plain">Plain-English</option>
+                       <option value="professional">Professional</option>
+@@ -306,50 +349,59 @@
+                 <div class="row" style="margin-top:16px;">
+                   <label class="muted" style="margin-right:6px">Preset</label>
+                   <select id="presetSelect" aria-label="Simplify preset">
+                     <option value="eli5">Explain like I'm 5 (ELI5)</option>
+                     <option value="5">5 year old</option>
+                     <option value="10">10 year old</option>
+                     <option value="teen">Teenager</option>
+                     <option value="adult">Adult (Plain)</option>
+                     <option value="legal">Legal (Keep meaning)</option>
+                   </select>
+ 
+                   <label class="muted" style="margin-left:12px">Difficulty</label>
+                   <input id="difficulty" type="range" min="1" max="3" step="1" value="1" aria-label="Difficulty slider" />
+                   <div id="diffLabel" class="muted" style="min-width:80px;text-align:right">Simple</div>
+                 </div>
+ 
+                 <div class="row" style="margin-top:16px;">
+                   <button id="btnTxt" class="ghost">Download .txt</button>
+                   <button id="btnPdf" class="ghost">Download .pdf</button>
+                   <button id="btnShare" class="ghost">Copy share link</button>
+                   <button id="btnClear" class="ghost" style="color:var(--muted)">Clear</button>
+                   <button id="visualToggle" class="ghost">🖼️ Visual mode</button>
+                   <button id="btnSurprise" class="ghost">🎲 Surprise me</button>
+                 </div>
+ 
++                <div class="read-controls" aria-live="polite">
++                  <label for="voiceSelect">Voice</label>
++                  <select id="voiceSelect" aria-label="Read aloud voice"></select>
++                  <label for="voiceRate">Speed</label>
++                  <input id="voiceRate" type="range" min="0.8" max="1.2" step="0.05" value="1" aria-valuemin="0.8" aria-valuemax="1.2" aria-valuenow="1" aria-label="Read aloud speed">
++                  <span id="voiceRateLabel">1×</span>
++                  <button id="btnReadParagraph" class="ghost">Read current paragraph</button>
++                </div>
++
+                 <div style="margin-top:12px" class="muted">Tip: Toggle visual mode to see summaries as cards. Tone lets you guide the personality of the rewrite.</div>
+               </div>
+             </section>
+ 
+             <section class="glass-panel" aria-labelledby="outputHeading" style="background:rgba(15,23,42,0.4);">
+               <div class="pad">
+                 <div class="out" id="outputShell">
+                   <div id="output" class="result-box" role="region" aria-live="polite" tabindex="0"></div>
+                 </div>
+ 
+                 <div class="visual-toggle" style="margin-top:18px;">
+                   <span>Visual summary</span>
+                   <span class="muted">(cards appear when Visual mode is active)</span>
+                 </div>
+                 <div id="visualContainer" class="visual-board" aria-live="polite"></div>
+ 
+                 <h3 id="outputHeading" style="margin-top:24px">Glossary</h3>
+                 <ul id="glossary" class="list" aria-live="polite">
+                   <li><small class="muted">No special terms detected.</small></li>
+                 </ul>
+               </div>
+             </section>
+           </div>
+         </div>
+       </div>
+@@ -454,221 +506,618 @@
+       <strong>Theme & AI</strong>
+       <button id="themeClose" class="ghost">Close</button>
+     </div>
+ 
+     <div style="margin-top:10px;font-size:13px;color:var(--muted)">Customize colors, add an external glossary URL, or paste an OpenAI API key for one-click AI rewrite (saved locally).</div>
+ 
+     <div class="row" style="margin-top:12px">
+       <label style="flex:1;display:flex;justify-content:space-between;align-items:center">Accent <input type="color" data-var="--accent" id="cAccent" aria-label="Accent color"></label>
+     </div>
+     <div class="row">
+       <label style="flex:1;display:flex;justify-content:space-between;align-items:center">Background <input type="color" data-var="--bg" id="cBg" aria-label="Background color"></label>
+     </div>
+     <div class="row">
+       <label style="flex:1;display:flex;justify-content:space-between;align-items:center">Card <input type="color" data-var="--card" id="cCard" aria-label="Card color"></label>
+     </div>
+     <div class="row">
+       <label style="flex:1;display:flex;justify-content:space-between;align-items:center">Text <input type="color" data-var="--text" id="cText" aria-label="Text color"></label>
+     </div>
+ 
+     <div style="display:flex;gap:8px;margin-top:12px">
+       <button id="themeReset" class="secondary">Reset</button>
+       <button id="themeDark" class="">Dark</button>
+       <button id="themeLight" class="ghost">Light</button>
+     </div>
+ 
++    <div class="contrast-grid" aria-live="polite">
++      <div class="contrast-card">
++        <strong>Text vs Background</strong>
++        <span class="muted" id="contrastTextValue">--</span>
++        <span class="contrast-badge fail" id="contrastTextBadge">--</span>
++      </div>
++      <div class="contrast-card">
++        <strong>Pill vs Background</strong>
++        <span class="muted" id="contrastPillValue">--</span>
++        <span class="contrast-badge fail" id="contrastPillBadge">--</span>
++      </div>
++    </div>
++
+     <div style="margin-top:10px">
+       <label style="display:block;font-size:13px;margin-top:10px">External compressed glossary URL (optional)</label>
+       <input id="externalGlossaryUrl" type="text" placeholder="/data/glossary.lz (LZ-String compressed JSON)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px" />
+       <div style="display:flex;gap:8px;margin-top:8px">
+         <button id="loadExternalGlossary" class="ghost">Load glossary</button>
+         <button id="clearExternalGlossary" class="ghost">Clear URL</button>
++        <span id="externalGlossaryHost" class="muted" aria-live="polite"></span>
+       </div>
+     </div>
+ 
+-    <div style="margin-top:10px">
++    <div id="aiKeyBlock" style="margin-top:10px">
+       <label style="display:block;font-size:13px;margin-top:10px">OpenAI API key (optional — stored in your browser)</label>
+       <input id="aiKeyInput" type="password" placeholder="sk-..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px" />
+       <div style="display:flex;gap:8px;margin-top:8px">
+         <button id="saveAiKey" class="ghost">Save API Key</button>
+         <button id="clearAiKey" class="ghost">Clear Key</button>
+       </div>
+       <small class="muted">If you paste an API key here the AI Rewrite will call OpenAI directly from your browser (API key is stored locally). Use a proxy if you don't want to paste keys into the browser.</small>
+     </div>
+ 
++    <div class="mode-toggle-row">
++      <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="tooltipModeToggle"> Tooltips on click</label>
++      <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="privateModeToggle"> Private mode</label>
++    </div>
++
++    <div class="mode-toggle-row">
++      <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="offlineQueueToggle"> Remember last glossary offline</label>
++    </div>
++
++    <div style="margin-top:10px">
++      <label style="display:block;font-size:13px;margin-top:10px">Import palette from image</label>
++      <input id="themeImage" type="file" accept="image/*" />
++    </div>
++
+     <div style="display:flex;gap:8px;margin-top:10px">
+       <button id="themeCopy" class="ghost">Copy JSON</button>
+       <button id="themePaste" class="ghost">Paste JSON / Glossary</button>
+       <button id="themeExport" class="ghost">Export</button>
++      <button id="themeShare" class="ghost">Copy share link</button>
++    </div>
++
++    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
++      <button id="glossaryExport" class="ghost">Export glossary JSON</button>
++      <button id="glossaryClearCustom" class="ghost">Clear custom glossary</button>
+     </div>
+ 
+     <small class="muted" style="display:block;margin-top:8px">Changes saved to localStorage. Use compressed glossary files with LZ-String for faster loads.</small>
+   </div>
+ 
+   <template id="popoverTpl">
+     <div class="popover" role="dialog" aria-modal="true">
+       <button class="close" aria-label="Close">✕</button>
+       <div class="title" style="font-weight:700"></div>
+       <div class="body" style="margin-top:8px;white-space:pre-wrap"></div>
+     </div>
+   </template>
+ 
+   <audio id="lofi" loop>
+     <source src="https://cdn.pixabay.com/download/audio/2023/09/27/audio_8f2e580dd2.mp3?filename=lofi-study-158436.mp3" type="audio/mpeg">
+   </audio>
+ 
+   <script>
+   (function(){
+     const inputEl = document.getElementById('input');
++    const inputMetrics = document.getElementById('inputMetrics');
+     const fileInput = document.getElementById('fileInput');
+     const glossaryUpload = document.getElementById('glossaryUpload');
+     const outputEl = document.getElementById('output');
+     const glossaryEl = document.getElementById('glossary');
+     const btnSimplify = document.getElementById('btnSimplify');
+     const btnLine = document.getElementById('btnLine');
+     const btnCopy = document.getElementById('btnCopy');
+     const btnTxt = document.getElementById('btnTxt');
+     const btnPdf = document.getElementById('btnPdf');
+     const btnShare = document.getElementById('btnShare');
+     const btnClear = document.getElementById('btnClear');
+     const btnAI = document.getElementById('btnAI');
+     const difficulty = document.getElementById('difficulty');
+     const diffLabel = document.getElementById('diffLabel');
+     const modePill = document.getElementById('modePill');
+     const termPill = document.getElementById('termPill');
+     const statusPill = document.getElementById('statusPill');
++    const privacyPill = document.getElementById('privacyPill');
+     const presetSelect = document.getElementById('presetSelect');
+     const toneSelect = document.getElementById('toneSelect');
+     const visualToggle = document.getElementById('visualToggle');
+     const visualContainer = document.getElementById('visualContainer');
+     const outputShell = document.getElementById('outputShell');
+     const progressOverlay = document.getElementById('progressOverlay');
+     const progressText = document.getElementById('progressText');
+     const progressBar = document.getElementById('progressBar');
+     const mascotBubble = document.getElementById('mascotBubble');
+     const mascotText = document.getElementById('mascotText');
+     const btnReadAloud = document.getElementById('btnReadAloud');
++    const btnReadParagraph = document.getElementById('btnReadParagraph');
++    const voiceSelect = document.getElementById('voiceSelect');
++    const voiceRate = document.getElementById('voiceRate');
++    const voiceRateLabel = document.getElementById('voiceRateLabel');
+     const audioToggle = document.getElementById('audioToggle');
+     const surpriseBtn = document.getElementById('btnSurprise');
++    const pasteCta = document.getElementById('pasteCta');
+     const lofi = document.getElementById('lofi');
+     const heroTitle = document.querySelector('.bridge-title');
+     const navLinks = document.querySelectorAll('.floating-nav a');
+     const themePresetButtons = document.querySelectorAll('[data-theme-preset]');
+     const themeRandom = document.getElementById('themeRandom');
+     const themeNameInput = document.getElementById('themeName');
+     const themeSaveBtn = document.getElementById('themeSave');
+     const savedThemeList = document.getElementById('savedThemes');
+     const termTooltip = document.getElementById('termTooltip');
+ 
+     const gear = document.getElementById('gear');
+     const themePanel = document.getElementById('themePanel');
+     const themeClose = document.getElementById('themeClose');
+     const themeReset = document.getElementById('themeReset');
+     const themeDark = document.getElementById('themeDark');
+     const themeLight = document.getElementById('themeLight');
+     const themeCopy = document.getElementById('themeCopy');
+     const themePaste = document.getElementById('themePaste');
+     const themeExport = document.getElementById('themeExport');
++    const themeShare = document.getElementById('themeShare');
++    const themeImageInput = document.getElementById('themeImage');
+     const externalGlossaryUrlInput = document.getElementById('externalGlossaryUrl');
+     const loadExternalGlossary = document.getElementById('loadExternalGlossary');
+     const clearExternalGlossary = document.getElementById('clearExternalGlossary');
++    const externalGlossaryHost = document.getElementById('externalGlossaryHost');
+     const aiKeyInput = document.getElementById('aiKeyInput');
++    const aiKeyBlock = document.getElementById('aiKeyBlock');
+     const saveAiKeyBtn = document.getElementById('saveAiKey');
+     const clearAiKeyBtn = document.getElementById('clearAiKey');
++    const tooltipModeToggle = document.getElementById('tooltipModeToggle');
++    const privateModeToggle = document.getElementById('privateModeToggle');
++    const offlineQueueToggle = document.getElementById('offlineQueueToggle');
++    const glossaryExport = document.getElementById('glossaryExport');
++    const glossaryClearCustom = document.getElementById('glossaryClearCustom');
+     const colorInputs = Array.from(document.querySelectorAll('#themePanel input[type="color"]'));
++    const contrastTextValue = document.getElementById('contrastTextValue');
++    const contrastTextBadge = document.getElementById('contrastTextBadge');
++    const contrastPillValue = document.getElementById('contrastPillValue');
++    const contrastPillBadge = document.getElementById('contrastPillBadge');
+     const popoverTpl = document.getElementById('popoverTpl');
+ 
+     const workerCode = `
+       self.onmessage = function(ev) {
+         const { type, glossary } = ev.data;
+         if (type === 'build') {
+           const index = {};
+           for (const [k, v] of Object.entries(glossary)) {
+             const key = k.toLowerCase();
+             index[key] = v;
+             if (k.length > 3 && !k.endsWith('s')) index[(k + 's').toLowerCase()] = v;
+           }
+           self.postMessage({ type: 'ready', index });
+         }
+       };
+     `;
+     const workerBlob = new Blob([workerCode], { type: 'text/javascript' });
+     const workerUrl = URL.createObjectURL(workerBlob);
+     const glossaryWorker = new Worker(workerUrl);
+ 
+     let glossaryIndex = null;
+     let workerReady = false;
++    let tooltipMode = 'hover';
++    let privateMode = false;
++    let offlineQueueEnabled = false;
++    let availableVoices = [];
++    let sentenceAnchors = new Map();
++    let highlightedSentence = null;
++    let selectedVoiceUri = null;
++    let selectedRate = 1;
++
++    const CUSTOM_GLOSSARY_KEY = 'paperbridge:customGlossary';
++    const OFFLINE_QUEUE_KEY = 'paperbridge:offlineQueue';
++    const TOOLTIP_MODE_KEY = 'paperbridge:tooltipMode';
++    const PRIVATE_MODE_KEY = 'paperbridge:privateMode';
++    const OFFLINE_QUEUE_TOGGLE_KEY = 'paperbridge:offlineQueueToggle';
++    const VOICE_SETTINGS_KEY = 'paperbridge:voiceSettings';
+ 
+     glossaryWorker.onmessage = (ev) => {
+       if (ev.data && ev.data.type === 'ready') {
+         glossaryIndex = ev.data.index;
+         workerReady = true;
+         statusPill.textContent = 'Glossary indexed';
+       }
+     };
+ 
+     const FALLBACK_GLOSSARY = {
+       "applicant":{"simple":"person applying","note":"the person using the form"},
+       "hereby":{"simple":"now","note":"formal word often used by the document"},
+       "pursuant to":{"simple":"according to","note":"refers to a rule or law"},
+       "notwithstanding":{"simple":"even though","note":"overrides another clause"},
+       "remit":{"simple":"send","note":"send documents, fees, or proof"},
+       "void":{"simple":"invalid","note":"not accepted"}
+     };
+ 
+-    const LARGE_GLOSSARY = Object.assign({}, FALLBACK_GLOSSARY);
++    let customGlossary = {};
++    try {
++      const storedCustom = localStorage.getItem(CUSTOM_GLOSSARY_KEY);
++      if (storedCustom) customGlossary = JSON.parse(storedCustom) || {};
++    } catch {}
++
++    const LARGE_GLOSSARY = Object.assign({}, FALLBACK_GLOSSARY, customGlossary);
+ 
+     function fetchAndLoadExternalGlossary(url) {
++      if (privateMode) return Promise.reject(new Error('Private mode enabled.'));
+       if (!url) return Promise.reject(new Error('No URL'));
++      let target;
++      try { target = new URL(url, location.origin); }
++      catch { return Promise.reject(new Error('Invalid URL')); }
++      if (!/^https?:$/.test(target.protocol)) return Promise.reject(new Error('Only HTTP(S) URLs allowed'));
++      if (externalGlossaryHost) externalGlossaryHost.textContent = 'Host: ' + target.host;
+       statusPill.textContent = 'Loading external glossary…';
+-      return fetch(url).then(r => {
++      return fetch(target.href).then(r => {
+         if (!r.ok) throw new Error('Failed to fetch glossary');
+         return r.text();
+       }).then(txt => {
+         let decompressed;
+         try { decompressed = LZString.decompressFromEncodedURIComponent(txt.trim()) || txt; }
+         catch { decompressed = txt; }
+         let parsed;
+         try { parsed = JSON.parse(decompressed); } catch { parsed = null; }
+         if (!parsed) throw new Error('Invalid or unparsable glossary JSON');
+         Object.assign(LARGE_GLOSSARY, parsed);
++        Object.assign(customGlossary, parsed);
++        persistCustomGlossary();
+         buildGlossaryIndex();
++        persistOfflineQueue();
+         statusPill.textContent = 'External glossary loaded';
+         return parsed;
+       });
+     }
+ 
+     function buildGlossaryIndex() {
+       statusPill.textContent = 'Indexing glossary…';
+       glossaryWorker.postMessage({ type: 'build', glossary: LARGE_GLOSSARY });
+     }
+ 
+     function appendText(el, text) { el.appendChild(document.createTextNode(text)); }
+     function clearChildren(el){ while (el.firstChild) el.removeChild(el.firstChild); }
+     function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+     function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+ 
++    function countWords(text){ return text.trim() ? text.trim().split(/\s+/).length : 0; }
++
++    function colorStringToRgb(str, fallback=[0,0,0,1]) {
++      if (!str) return fallback;
++      str = str.trim();
++      if (str.startsWith('#')) {
++        const hex = str.slice(1);
++        const value = hex.length === 3 ? hex.split('').map(c=>c+c).join('') : hex.padEnd(6,'0');
++        const r = parseInt(value.slice(0,2),16);
++        const g = parseInt(value.slice(2,4),16);
++        const b = parseInt(value.slice(4,6),16);
++        return [r,g,b,1];
++      }
++      const match = str.match(/rgba?\(([^)]+)\)/i);
++      if (match) {
++        const parts = match[1].split(',').map(p => p.trim());
++        const r = parseFloat(parts[0]);
++        const g = parseFloat(parts[1]);
++        const b = parseFloat(parts[2]);
++        const a = parts[3] !== undefined ? parseFloat(parts[3]) : 1;
++        return [r,g,b,isNaN(a)?1:a];
++      }
++      return fallback;
++    }
++
++    function rgbArrayToHex(rgb) {
++      return '#' + rgb.slice(0,3).map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2,'0')).join('');
++    }
++
++    function rgbObjToHex(color) {
++      return '#' + [color.r, color.g, color.b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2,'0')).join('');
++    }
++
++    function rgbObjToRgba(color, alpha) {
++      return `rgba(${Math.round(color.r)},${Math.round(color.g)},${Math.round(color.b)},${alpha})`;
++    }
++
++    function blendRgb(fg, bg) {
++      const alpha = fg[3] ?? 1;
++      if (alpha >= 1) return fg;
++      return [
++        Math.round(fg[0]*alpha + bg[0]*(1-alpha)),
++        Math.round(fg[1]*alpha + bg[1]*(1-alpha)),
++        Math.round(fg[2]*alpha + bg[2]*(1-alpha)),
++        1
++      ];
++    }
++
++    function relLumFromRgb(rgb){
++      const [r,g,b] = rgb.slice(0,3).map(v => {
++        v /= 255;
++        return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4);
++      });
++      return 0.2126*r + 0.7152*g + 0.0722*b;
++    }
++
++    function contrastRatio(hex1, hex2){
++      const [L1, L2] = [relLumFromRgb(hex1), relLumFromRgb(hex2)].sort((a,b)=>b-a);
++      return ((L1+0.05)/(L2+0.05));
++    }
++
++    function updateContrastBadges(){
++      const styles = getComputedStyle(document.documentElement);
++      const bg = blendRgb(colorStringToRgb(styles.getPropertyValue('--bg'), [15,23,42,1]), [15,23,42,1]);
++      const text = blendRgb(colorStringToRgb(styles.getPropertyValue('--text'), [241,245,255,1]), bg);
++      const pillBg = blendRgb(colorStringToRgb(styles.getPropertyValue('--pill-bg'), [99,102,241,0.15]), bg);
++      const ratioText = contrastRatio(text, bg);
++      const ratioPill = contrastRatio(text, pillBg);
++      applyBadge(contrastTextValue, contrastTextBadge, ratioText);
++      applyBadge(contrastPillValue, contrastPillBadge, ratioPill);
++    }
++
++    function applyBadge(valueEl, badgeEl, ratio){
++      if (!valueEl || !badgeEl) return;
++      valueEl.textContent = ratio.toFixed(2) + ':1';
++      badgeEl.classList.remove('aaa','aa','fail');
++      if (ratio >= 7) {
++        badgeEl.classList.add('aaa');
++        badgeEl.textContent = 'AAA';
++      } else if (ratio >= 4.5) {
++        badgeEl.classList.add('aa');
++        badgeEl.textContent = 'AA';
++      } else {
++        badgeEl.classList.add('fail');
++        badgeEl.textContent = 'Needs contrast';
++      }
++    }
++
++    function updateInputMetrics() {
++      if (!inputMetrics) return;
++      const text = inputEl.value || '';
++      const chars = text.length;
++      const words = countWords(text);
++      const warn = chars > 5000 || words > 800;
++      inputMetrics.innerHTML = `Characters: ${chars.toLocaleString()} • Words: ${words.toLocaleString()}` + (warn ? ` <span class="warn">This may be slow in the browser; consider TXT/DOCX.</span>` : '');
++    }
++
++    function persistCustomGlossary() {
++      try { localStorage.setItem(CUSTOM_GLOSSARY_KEY, JSON.stringify(customGlossary)); }
++      catch {}
++    }
++
++    function storeCustomTerm(term, simple, note) {
++      const key = term.toLowerCase();
++      customGlossary[key] = { simple, note };
++      LARGE_GLOSSARY[key] = { simple, note };
++      persistCustomGlossary();
++      buildGlossaryIndex();
++      persistOfflineQueue();
++    }
++
++    function createDefinitionControls(term, container, displayEl) {
++      const addBtn = document.createElement('button');
++      addBtn.className = 'ghost';
++      addBtn.type = 'button';
++      addBtn.textContent = '+ Add definition';
++      addBtn.addEventListener('click', () => {
++        addBtn.remove();
++        const form = document.createElement('form');
++        form.style.marginTop = '8px';
++        form.style.display = 'grid';
++        form.style.gap = '6px';
++        const simpleInput = document.createElement('input');
++        simpleInput.type = 'text';
++        simpleInput.placeholder = 'Simple description';
++        const noteInput = document.createElement('input');
++        noteInput.type = 'text';
++        noteInput.placeholder = 'Optional note';
++        const submitBtn = document.createElement('button');
++        submitBtn.type = 'submit';
++        submitBtn.className = 'ghost';
++        submitBtn.textContent = 'Save term';
++        form.appendChild(simpleInput);
++        form.appendChild(noteInput);
++        form.appendChild(submitBtn);
++        container.appendChild(form);
++        simpleInput.focus();
++        form.addEventListener('submit', (ev) => {
++          ev.preventDefault();
++          const simple = simpleInput.value.trim();
++          if (!simple) return;
++          const note = noteInput.value.trim();
++          storeCustomTerm(term, simple, note);
++          if (displayEl) {
++            displayEl.textContent = simple;
++            if (note) {
++              let noteEl = container.querySelector('small.muted');
++              if (!noteEl) {
++                noteEl = document.createElement('small');
++                noteEl.className = 'muted';
++                noteEl.style.display = 'block';
++                noteEl.style.marginTop = '6px';
++                container.appendChild(noteEl);
++              }
++              noteEl.textContent = note;
++            }
++          }
++          container.removeChild(form);
++        });
++      });
++      container.appendChild(addBtn);
++    }
++
++    function setTooltipMode(mode) {
++      tooltipMode = mode;
++      tooltipModeToggle.checked = mode === 'click';
++      localStorage.setItem(TOOLTIP_MODE_KEY, mode);
++      if (mode === 'hover') hideTermTooltip();
++    }
++
++    function applyPrivateMode(enabled, silent = false) {
++      privateMode = enabled;
++      privateModeToggle.checked = enabled;
++      localStorage.setItem(PRIVATE_MODE_KEY, enabled ? 'true' : 'false');
++      if (privacyPill) privacyPill.style.display = enabled ? 'inline-flex' : 'none';
++      [btnAI, loadExternalGlossary].forEach(btn => {
++        if (btn) {
++          btn.disabled = enabled;
++          btn.setAttribute('aria-disabled', enabled ? 'true' : 'false');
++        }
++      });
++      if (externalGlossaryUrlInput) externalGlossaryUrlInput.disabled = enabled;
++      if (aiKeyBlock) aiKeyBlock.style.display = enabled ? 'none' : 'block';
++      if (enabled) {
++        statusPill.textContent = 'Private mode on';
++        if (!silent) friendlyMessage('🔒 Private mode enabled. External calls paused.');
++      } else {
++        if (statusPill.textContent === 'Private mode on') statusPill.textContent = 'Ready';
++      }
++    }
++
++    function applyOfflineQueue(enabled, silent = false) {
++      offlineQueueEnabled = enabled;
++      offlineQueueToggle.checked = enabled;
++      localStorage.setItem(OFFLINE_QUEUE_TOGGLE_KEY, enabled ? 'true' : 'false');
++      if (enabled) {
++        if (!silent) persistOfflineQueue();
++      } else {
++        localStorage.removeItem(OFFLINE_QUEUE_KEY);
++      }
++    }
++
++    function persistOfflineQueue(payload) {
++      if (!offlineQueueEnabled) return;
++      const data = payload || { text: inputEl.value, glossary: customGlossary };
++      try { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(data)); } catch {}
++    }
++
++    function restoreOfflineQueue() {
++      if (!offlineQueueEnabled) return;
++      try {
++        const stored = localStorage.getItem(OFFLINE_QUEUE_KEY);
++        if (!stored) return;
++        const data = JSON.parse(stored);
++        if (data && typeof data.text === 'string') {
++          inputEl.value = data.text;
++          updateInputMetrics();
++        }
++        if (data && data.glossary) {
++          customGlossary = Object.assign({}, customGlossary, data.glossary);
++          Object.assign(LARGE_GLOSSARY, data.glossary);
++          buildGlossaryIndex();
++        }
++      } catch {}
++    }
++
++    let pdfLoaderPromise = null;
++    let mammothLoaderPromise = null;
++
++    async function ensurePdf() {
++      if (privateMode) throw new Error('Private mode blocks PDF loading.');
++      if (!pdfLoaderPromise) {
++        pdfLoaderPromise = import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js').then(mod => {
++          if (mod && mod.default && !window.pdfjsLib) window.pdfjsLib = mod.default;
++          if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
++            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
++          }
++          return window.pdfjsLib;
++        }).catch(err => { pdfLoaderPromise = null; throw err; });
++      }
++      return pdfLoaderPromise;
++    }
++
++    async function ensureMammoth() {
++      if (privateMode) throw new Error('Private mode blocks DOCX loading.');
++      if (!mammothLoaderPromise) {
++        mammothLoaderPromise = import('https://unpkg.com/mammoth/mammoth.browser.min.js').then(mod => {
++          if (mod && mod.default && !window.mammoth) window.mammoth = mod.default;
++          return window.mammoth;
++        }).catch(err => { mammothLoaderPromise = null; throw err; });
++      }
++      return mammothLoaderPromise;
++    }
++
++    const SHORTCUTS = [
++      { combo:'?', desc:'Open shortcuts' },
++      { combo:'Shift+O', desc:'Toggle Theme Lab' },
++      { combo:'Shift+V', desc:'Toggle visual mode' },
++      { combo:'Shift+S', desc:'Simplify document' },
++      { combo:'Esc', desc:'Close dialogs / theme panel' }
++    ];
++
++    function showShortcutSheet() {
++      const body = '<ul style="margin:0;padding-left:18px">' + SHORTCUTS.map(item => `<li><strong>${item.combo}</strong> — ${item.desc}</li>`).join('') + '</ul>';
++      showPopover('Keyboard shortcuts', body, { html: true, className: 'shortcut-pop' });
++    }
++
++    function saveVoiceSettings() {
++      try { localStorage.setItem(VOICE_SETTINGS_KEY, JSON.stringify({ voice: selectedVoiceUri, rate: selectedRate })); }
++      catch {}
++    }
++
++    function populateVoices() {
++      if (!('speechSynthesis' in window) || !voiceSelect) return;
++      availableVoices = window.speechSynthesis.getVoices();
++      if (!availableVoices.length) return;
++      const prev = voiceSelect.value;
++      voiceSelect.innerHTML = '';
++      availableVoices.forEach((voice, idx) => {
++        const option = document.createElement('option');
++        option.value = voice.voiceURI;
++        option.textContent = `${voice.name} (${voice.lang})`;
++        if (voice.voiceURI === selectedVoiceUri || (!selectedVoiceUri && voice.lang.startsWith('en') && !voiceSelect.value)) {
++          option.selected = true;
++          selectedVoiceUri = voice.voiceURI;
++        }
++        voiceSelect.appendChild(option);
++      });
++      if (prev) voiceSelect.value = prev;
++    }
++
++    function updateVoiceRateLabel() {
++      if (!voiceRateLabel) return;
++      const display = (selectedRate || 1).toFixed(2).replace(/\.00$/,'').replace(/0$/,'');
++      voiceRateLabel.textContent = display + '×';
++    }
++
++    const CARD_EMOJIS = [
++      { emoji:'⚖️', test:/shall|pursuant|law|legal|obligation|compliance/i },
++      { emoji:'📅', test:/date|deadline|day|by\s+\d|calendar|schedule/i },
++      { emoji:'💵', test:/fee|payment|cost|pay|remit|charge/i },
++      { emoji:'📝', test:/form|application|document|submit|provide/i },
++      { emoji:'🔐', test:/privacy|security|protect|safe|confidential/i },
++      { emoji:'💡', test:/tip|hint|idea|suggest/i }
++    ];
++
++    function pickCardEmoji(sentence){
++      for (const item of CARD_EMOJIS) {
++        if (item.test.test(sentence)) return item.emoji;
++      }
++      return '🧾';
++    }
++
+     const PRESET_VOCAB = {
+       eli5: { "applicant":"person applying","pursuant to":"because of","hereby":"now","notwithstanding":"even though","remit":"send","void":"not valid","consents":"says yes","documentation":"papers","failure":"if you don't","assessment":"check","SIN":"Social Insurance Number (SIN)" },
+       "5": {},
+       "10": { "consents":"agrees", "documentation":"documents", "assessment":"review" },
+       teen: { "consents":"agrees", "documentation":"documents", "remit":"submit" },
+       adult: { "pursuant to":"under", "notwithstanding":"despite", "remit":"send" },
+       legal: {}
+     };
+ 
+     function getBasePatterns(level) {
+       const base = [
+         { find: /\bpursuant to\b/gi, replace: level === 3 ? 'according to' : 'under' },
+         { find: /\bherein\b/gi, replace: 'in this document' },
+         { find: /\bhereby\b/gi, replace: 'now' },
+         { find: /\bnotwithstanding\b/gi, replace: 'even though' },
+         { find: /\bremit\b/gi, replace: 'send' },
+         { find: /\bvoid\b/gi, replace: 'invalid' },
+         { find: /\bshall\b/gi, replace: 'must' },
+         { find: /\bprior to\b/gi, replace: 'before' },
+         { find: /\bsubsequent to\b/gi, replace: 'after' }
+       ];
+       if (level >= 2) {
+         base.push({ find: /\bherewith\b/gi, replace: 'with this' });
+         base.push({ find: /\bconsents\b/gi, replace: 'agrees' });
+         base.push({ find: /\bdocumentation\b/gi, replace: 'documents' });
+@@ -732,150 +1181,199 @@
+       const hits = base.hits.concat(pv.hits);
+       return { simplified: text, hits };
+     }
+ 
+     function applyPatterns(text, patterns){
+       let out = text, hits = [];
+       for (const p of patterns) {
+         out = out.replace(p.find, (m)=>{ hits.push(m); return p.replace; });
+       }
+       return { out, hits };
+     }
+ 
+     function highlightNodes(text, hits) {
+       const uniq = Array.from(new Set(hits.map(h => h.toLowerCase().trim()))).filter(Boolean);
+       if (!uniq.length) return [document.createTextNode(text)];
+       const fragment = document.createDocumentFragment();
+       const escaped = uniq.map(escapeRegExp).join('|');
+       const regex = new RegExp('\\b(' + escaped + ')\\b','gi');
+       let last = 0, m;
+       while ((m = regex.exec(text)) !== null) {
+         if (m.index > last) fragment.appendChild(document.createTextNode(text.slice(last, m.index)));
+         const mark = document.createElement('mark');
+         mark.className = 'repl';
+         mark.dataset.term = m[0];
+         mark.title = 'Click to explain';
+-        mark.addEventListener('click', () => explainTerm(m[0]));
+-        mark.addEventListener('mouseenter', (ev) => showTermTooltip(ev, m[0]));
+-        mark.addEventListener('mouseleave', hideTermTooltip);
++        mark.addEventListener('click', (ev) => {
++          if (tooltipMode === 'click') {
++            showTermTooltip(ev, m[0]);
++          }
++          explainTerm(m[0]);
++        });
++        mark.addEventListener('mouseenter', (ev) => {
++          if (tooltipMode === 'hover') showTermTooltip(ev, m[0]);
++        });
++        mark.addEventListener('mouseleave', () => {
++          if (tooltipMode === 'hover') hideTermTooltip();
++        });
+         mark.appendChild(document.createTextNode(m[0]));
+         fragment.appendChild(mark);
+         last = regex.lastIndex;
+       }
+       if (last < text.length) fragment.appendChild(document.createTextNode(text.slice(last)));
+       return Array.from(fragment.childNodes);
+     }
+ 
+     function renderResult(text, hits) {
+       clearChildren(outputEl);
+-      const nodes = highlightNodes(text, hits);
++      sentenceAnchors = new Map();
+       const wrap = document.createElement('div');
+       wrap.classList.add('fade-in');
+-      nodes.forEach(n => wrap.appendChild(n));
++      const sentences = text.match(/[^.!?]+[.!?]*/g) || [text];
++      sentences.forEach((sentence, idx) => {
++        const chunk = document.createElement('span');
++        chunk.className = 'sentence-chunk';
++        chunk.dataset.index = String(idx);
++        const nodes = highlightNodes(sentence.trim(), hits);
++        nodes.forEach(n => chunk.appendChild(n));
++        if (idx < sentences.length - 1) chunk.appendChild(document.createTextNode(' '));
++        wrap.appendChild(chunk);
++        sentenceAnchors.set(idx, chunk);
++      });
+       outputEl.appendChild(wrap);
+       return Array.from(new Set(hits.map(h => h.toLowerCase().trim()).filter(Boolean)));
+     }
+ 
+     function renderGlossary(terms) {
+       clearChildren(glossaryEl);
+       if (!terms || terms.length === 0) {
+         const li = document.createElement('li');
+         const small = document.createElement('small');
+         small.className = 'muted';
+         appendText(small, 'No special terms detected.');
+         li.appendChild(small);
+         glossaryEl.appendChild(li);
+         return;
+       }
+       for (const t of terms) {
+         const def = (glossaryIndex && glossaryIndex[t]) ? glossaryIndex[t] : (LARGE_GLOSSARY[t] || null);
+         const li = document.createElement('li');
+         const title = document.createElement('strong'); appendText(title, t);
+         const div = document.createElement('div'); div.style.marginTop = '6px';
+-        appendText(div, def ? def.simple : '(no local definition)');
++        if (def) appendText(div, def.simple);
++        else appendText(div, '(no local definition)');
+         li.appendChild(title);
+         li.appendChild(div);
+         if (def && def.note) {
+           const note = document.createElement('small');
+           note.className = 'muted';
+           note.style.display = 'block';
+           note.style.marginTop = '6px';
+           appendText(note, def.note);
+           li.appendChild(note);
+         }
++        if (!def) {
++          createDefinitionControls(t, li, div);
++        }
+         glossaryEl.appendChild(li);
+       }
+     }
+ 
+-    function showPopover(title, body) {
++    function showPopover(title, body, options = {}) {
+       const existing = document.querySelector('.popover');
+       if (existing) existing.remove();
+       const tpl = popoverTpl.content.cloneNode(true);
+       const pop = tpl.querySelector('.popover');
+       pop.querySelector('.title').textContent = title;
+-      pop.querySelector('.body').textContent = body;
++      if (options.html) pop.querySelector('.body').innerHTML = body;
++      else pop.querySelector('.body').textContent = body;
++      if (options.className) pop.classList.add(options.className);
+       pop.querySelector('.close').addEventListener('click', () => pop.remove());
+       document.body.appendChild(pop);
+       pop.querySelector('.close').focus();
+     }
+ 
+     function explainTerm(term) {
+       const key = term.toLowerCase();
+       const def = (glossaryIndex && glossaryIndex[key]) ? glossaryIndex[key] : (LARGE_GLOSSARY[key] || null);
+       if (def) showPopover(term, (def.simple || '') + (def.note ? ('\n\n' + def.note) : ''));
+       else showPopover(term, 'No local definition found. Upload or paste a glossary JSON to merge more definitions.');
+     }
+ 
+     function showTermTooltip(ev, term) {
+       const key = term.toLowerCase();
+       const def = (glossaryIndex && glossaryIndex[key]) ? glossaryIndex[key] : (LARGE_GLOSSARY[key] || null);
+       termTooltip.textContent = def ? (def.simple + (def.note ? '\n' + def.note : '')) : 'No local definition yet.';
+       termTooltip.classList.add('visible');
+       positionTooltip(ev);
+     }
+     function hideTermTooltip() { termTooltip.classList.remove('visible'); }
+     function positionTooltip(ev) {
+       const rect = termTooltip.getBoundingClientRect();
+       let x = ev.clientX + 12, y = ev.clientY + 16;
+       if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width - 12;
+       if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 12;
+       termTooltip.style.left = x + 'px'; termTooltip.style.top = y + 'px';
+     }
+     document.addEventListener('mousemove', (ev) => {
+       if (termTooltip.classList.contains('visible')) positionTooltip(ev);
+     });
+ 
+     function renderVisualSummary(text) {
+       if (!visualContainer.classList.contains('active')) return;
+       clearChildren(visualContainer);
+-      const sentences = text.split(/(?<=[.!?])/).map(s => s.trim()).filter(Boolean);
++      const sentences = text.match(/[^.!?]+[.!?]*/g) || [text];
+       sentences.forEach((sentence, idx) => {
+         const card = document.createElement('div');
+         card.className = 'visual-card fade-in';
+-        const title = document.createElement('strong'); appendText(title, `Span ${idx + 1}`);
+-        const p = document.createElement('p'); p.className = 'muted'; appendText(p, sentence);
++        card.dataset.index = String(idx);
++        card.setAttribute('tabindex','0');
++        card.setAttribute('role','button');
++        card.setAttribute('aria-pressed', highlightedSentence === idx ? 'true' : 'false');
++        const title = document.createElement('strong'); appendText(title, `${pickCardEmoji(sentence)} Span ${idx + 1}`);
++        const p = document.createElement('p'); p.className = 'muted'; appendText(p, sentence.trim());
+         card.appendChild(title); card.appendChild(p); visualContainer.appendChild(card);
++        card.addEventListener('click', () => highlightSentence(idx));
++        card.addEventListener('keydown', (ev) => {
++          if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); card.click(); }
++        });
++      });
++    }
++
++    function highlightSentence(index) {
++      highlightedSentence = index;
++      visualContainer.querySelectorAll('.visual-card').forEach(card => {
++        const isMatch = Number(card.dataset.index) === index;
++        card.classList.toggle('highlight', isMatch);
++        card.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
++      });
++      sentenceAnchors.forEach((chunk, idx) => {
++        const isMatch = idx === index;
++        chunk.classList.toggle('highlighted', isMatch);
++        if (isMatch) {
++          chunk.scrollIntoView({ behavior:'smooth', block:'center' });
++        }
+       });
+     }
+ 
+     function friendlyMessage(message) {
+       mascotText.textContent = message;
+       mascotBubble.classList.add('bounce');
+       setTimeout(() => mascotBubble.classList.remove('bounce'), 800);
+     }
+ 
+     function summarizeAndRender(mode) {
+       outputShell.classList.add('bridge-flow');
+       setTimeout(() => outputShell.classList.remove('bridge-flow'), 600);
+       if (mode === 'line') return simplifyLineByLine();
+       return simplifyAll(mode);
+     }
+ 
+     function runSimplifyFlow(mode='simple') {
+       const messages = ['Bridging complexity…','Translating…','Clarity ahead 🚀'];
+       progressOverlay.classList.add('active');
+       let step = 0;
+       const advance = () => {
+         if (step < messages.length) {
+           progressText.textContent = messages[step];
+           progressBar.style.width = ((step+1)/messages.length*100) + '%';
+           step++;
+@@ -883,176 +1381,271 @@
+         } else {
+           summarizeAndRender(mode);
+           setTimeout(() => {
+             progressOverlay.classList.remove('active');
+             progressBar.style.width = '0%';
+           }, 320);
+         }
+       };
+       advance();
+     }
+ 
+     function simplifyAll(mode='simple') {
+       const raw = inputEl.value || '';
+       const preset = presetSelect.value;
+       const lvl = parseInt(difficulty.value, 10) || 1;
+       const presetKey = (preset === '5') ? 'eli5' : preset;
+       const tone = toneSelect.value;
+       const { simplified, hits } = simplifyForPreset(raw, presetKey, lvl, tone);
+       const detected = renderResult(simplified, hits);
+       renderVisualSummary(simplified);
+       renderGlossary(detected);
+       modePill.textContent = `Mode: ${mode === 'simple' ? 'Simple' : (mode === 'line' ? 'Line-by-line' : mode)}`;
+       termPill.textContent = `Terms: ${detected.length}`;
+       statusPill.textContent = 'Simplified';
+       friendlyMessage('✅ Done! You just turned legalese into human.');
++      persistOfflineQueue({ text: raw, glossary: customGlossary });
+       return { raw, simplified, detected, hits };
+     }
+ 
+     function simplifyLineByLine() {
+       const raw = inputEl.value || '';
+       const sentences = raw.match(/[^.!?]+[.!?]*/g) || [raw];
+       clearChildren(outputEl);
+       let allHits = [];
++      sentenceAnchors = new Map();
+       const preset = presetSelect.value;
+       const presetKey = (preset === '5') ? 'eli5' : preset;
+       const lvl = parseInt(difficulty.value,10) || 1;
+       const tone = toneSelect.value;
+-      sentences.forEach(s => {
++      sentences.forEach((s, idx) => {
+         const block = document.createElement('div');
+         block.style.marginBottom = '18px';
++        block.classList.add('sentence-block');
++        block.dataset.index = String(idx);
+         const smallO = document.createElement('small'); smallO.className = 'muted'; appendText(smallO,'Original');
+         const orig = document.createElement('div'); appendText(orig, s.trim());
+         const smallS = document.createElement('small'); smallS.className = 'muted'; smallS.style.marginTop='6px'; appendText(smallS,'Simplified');
+         const simpWrap = document.createElement('div'); simpWrap.style.marginTop='6px';
+         const { simplified, hits } = simplifyForPreset(s, presetKey, lvl, tone);
+         const nodes = highlightNodes(simplified, hits);
+         nodes.forEach(n => simpWrap.appendChild(n));
+         block.appendChild(smallO); block.appendChild(orig); block.appendChild(smallS); block.appendChild(simpWrap);
+         outputEl.appendChild(block);
++        sentenceAnchors.set(idx, block);
+         allHits = allHits.concat(hits);
+       });
+       const detected = Array.from(new Set(allHits.map(h => h.toLowerCase().trim())));
+       renderVisualSummary(raw);
+       renderGlossary(detected);
+       modePill.textContent = 'Mode: Line-by-line';
+       termPill.textContent = `Terms: ${detected.length}`;
+       statusPill.textContent = 'Line-by-line view';
+       friendlyMessage('🔍 Each sentence now has a twin across the bridge.');
++      persistOfflineQueue({ text: raw, glossary: customGlossary });
+       return { raw, simplified: raw, detected, hits: allHits };
+     }
+ 
+     btnSimplify.addEventListener('click', () => runSimplifyFlow('simple'));
+     btnLine.addEventListener('click', () => runSimplifyFlow('line'));
+     btnCopy.addEventListener('click', async () => {
+       const r = simplifyAll();
+       try { await navigator.clipboard.writeText(r.simplified); alert('Copied simplified text.'); } catch { alert('Could not copy.'); }
+     });
+ 
++    inputEl.addEventListener('input', () => {
++      updateInputMetrics();
++      persistOfflineQueue();
++    });
++
++    pasteCta.addEventListener('click', async () => {
++      inputEl.focus();
++      try {
++        const clip = await navigator.clipboard.readText();
++        if (clip) {
++          inputEl.value = clip;
++          updateInputMetrics();
++          friendlyMessage('📋 Text pasted from clipboard.');
++        } else {
++          friendlyMessage('Focus ready — paste when you’re set.');
++        }
++      } catch {
++        friendlyMessage('Clipboard permissions needed. Focus placed for manual paste.');
++      }
++    });
++
+     btnTxt.addEventListener('click', () => {
+       const r = simplifyAll();
+       const blob = new Blob([r.simplified], { type: 'text/plain;charset=utf-8' });
+       const url = URL.createObjectURL(blob);
+       const a = document.createElement('a'); a.href = url; a.download = 'paperbridge-simplified.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+     });
+ 
+     btnPdf.addEventListener('click', () => {
+       const r = simplifyAll();
+       const w = window.open('', '_blank', 'noopener');
+       if (!w) { alert('Unable to open print window.'); return; }
+       const doc = w.document;
+       doc.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PaperBridge — PDF</title>');
+       doc.write('<style>body{font-family:Inter,system-ui,Arial;color:#111;margin:28px}pre{white-space:pre-wrap;font-family:inherit;font-size:14px}h1{font-size:18px;margin-bottom:8px}</style>');
+       doc.write('</head><body><h1>PaperBridge — Simplified</h1><pre>' + escapeHtml(r.simplified) + '</pre></body></html>');
+       doc.close();
+       setTimeout(()=>w.print(), 300);
+     });
+ 
+     btnShare.addEventListener('click', async () => {
+       const r = simplifyAll();
+       try {
+-        const compressed = LZString.compressToEncodedURIComponent(r.simplified);
+-        const url = location.origin + location.pathname + '?t=' + compressed;
+-        await navigator.clipboard.writeText(url);
++        let compressed = LZString.compressToEncodedURIComponent(r.simplified);
++        const url = new URL(location.href);
++        url.searchParams.set('t', compressed);
++        url.searchParams.set('visual', visualContainer.classList.contains('active') ? '1' : '0');
++        const passphrase = prompt('Optional passphrase to protect this link (leave blank to skip).');
++        if (passphrase && passphrase.trim()) {
++          const secret = passphrase.trim();
++          const salted = secret + '::' + r.simplified;
++          const locked = LZString.compressToEncodedURIComponent(salted);
++          url.searchParams.delete('t');
++          url.searchParams.set('tp', locked);
++        } else {
++          url.searchParams.delete('tp');
++        }
++        await navigator.clipboard.writeText(url.toString());
+         alert('Share link copied (compressed).');
+       } catch { alert('Could not create share link.'); }
+     });
+ 
+     btnClear.addEventListener('click', () => {
+       inputEl.value = '';
+       clearChildren(outputEl);
+       glossaryEl.innerHTML = '<li><small class="muted">No special terms detected.</small></li>';
+       termPill.textContent = 'Terms: 0';
+       statusPill.textContent = 'Cleared';
+       friendlyMessage('🧼 Fresh slate ready. Paste when you are!');
+     });
+ 
+     difficulty.addEventListener('input', () => {
+       const val = parseInt(difficulty.value,10);
+       diffLabel.textContent = val===1 ? 'Simple' : (val===2 ? 'Medium' : 'Strong');
+     });
+     difficulty.addEventListener('change', () => simplifyAll());
+     presetSelect.addEventListener('change', () => simplifyAll());
+     toneSelect.addEventListener('change', () => simplifyAll());
+ 
+     visualToggle.addEventListener('click', () => {
+       visualContainer.classList.toggle('active');
+       visualToggle.classList.toggle('active');
+       if (visualContainer.classList.contains('active')) {
+         friendlyMessage('🖼️ Visual mode on. Cards ahead!');
+         renderVisualSummary(outputEl.textContent || inputEl.value);
+       } else {
+         friendlyMessage('Visual cards tucked away.');
+       }
+     });
+ 
+     surpriseBtn.addEventListener('click', () => {
+       const presetOptions = Array.from(presetSelect.options);
+       presetSelect.selectedIndex = Math.floor(Math.random() * presetOptions.length);
+       const tones = ['plain','professional','casual'];
+       toneSelect.value = tones[Math.floor(Math.random()*tones.length)];
+       const lvl = Math.floor(Math.random()*3)+1;
+       difficulty.value = lvl;
+       diffLabel.textContent = lvl===1 ? 'Simple' : (lvl===2 ? 'Medium' : 'Strong');
+       runSimplifyFlow('simple');
+       friendlyMessage('🎲 Surprise preset loaded!');
+     });
+ 
+     function speak(text) {
+       if (!('speechSynthesis' in window)) { alert('Speech synthesis is not supported in this browser.'); return; }
+       speechSynthesis.cancel();
+       const utter = new SpeechSynthesisUtterance(text);
+-      utter.pitch = 1; utter.rate = 1;
+-      utter.voice = speechSynthesis.getVoices().find(v => v.lang.startsWith('en')) || null;
++      if (!availableVoices.length) populateVoices();
++      utter.pitch = 1; utter.rate = selectedRate || 1;
++      if (selectedVoiceUri) utter.voice = availableVoices.find(v => v.voiceURI === selectedVoiceUri) || null;
++      if (!utter.voice) utter.voice = availableVoices.find(v => v.lang && v.lang.startsWith('en')) || null;
+       speechSynthesis.speak(utter);
+     }
+     btnReadAloud.addEventListener('click', () => {
+       const r = simplifyAll();
+       speak(r.simplified);
+       friendlyMessage('🔊 Reading your summary aloud.');
+     });
+ 
++    btnReadParagraph.addEventListener('click', () => {
++      if (!('speechSynthesis' in window)) { alert('Speech synthesis is not supported in this browser.'); return; }
++      const selection = window.getSelection();
++      if (selection && selection.toString().trim()) {
++        speak(selection.toString());
++        friendlyMessage('🔊 Reading your selection.');
++        return;
++      }
++      if (document.activeElement === inputEl) {
++        const text = inputEl.value || '';
++        const start = inputEl.selectionStart || 0;
++        const end = inputEl.selectionEnd || start;
++        if (end > start) {
++          speak(text.slice(start, end));
++          friendlyMessage('🔊 Reading the highlighted portion.');
++          return;
++        }
++        const before = text.lastIndexOf('\n', start - 1);
++        const after = text.indexOf('\n', start);
++        const paragraph = text.slice(before + 1, after === -1 ? text.length : after).trim();
++        if (paragraph) {
++          speak(paragraph);
++          friendlyMessage('🔊 Reading the current paragraph.');
++          return;
++        }
++      }
++      if (highlightedSentence !== null && sentenceAnchors.has(highlightedSentence)) {
++        const node = sentenceAnchors.get(highlightedSentence);
++        speak(node.textContent || '');
++        friendlyMessage('🔊 Reading highlighted sentence.');
++        return;
++      }
++      const fallback = outputEl.textContent?.trim() || inputEl.value.trim();
++      if (fallback) {
++        speak(fallback.split(/\n\n+/)[0]);
++        friendlyMessage('🔊 Reading the first paragraph.');
++      }
++    });
++
++    if (voiceRate) {
++      voiceRate.addEventListener('input', () => {
++        selectedRate = Math.min(1.2, Math.max(0.8, parseFloat(voiceRate.value) || 1));
++        updateVoiceRateLabel();
++        voiceRate.setAttribute('aria-valuenow', String(selectedRate));
++        saveVoiceSettings();
++      });
++    }
++    if (voiceSelect) {
++      voiceSelect.addEventListener('change', () => {
++        selectedVoiceUri = voiceSelect.value;
++        saveVoiceSettings();
++      });
++    }
++
+     audioToggle.addEventListener('click', async () => {
+       if (audioToggle.getAttribute('aria-pressed') === 'true') {
+         audioToggle.setAttribute('aria-pressed', 'false');
+         audioToggle.textContent = '🎧 Lo-fi off';
+         lofi.pause();
+         friendlyMessage('🎧 Quiet mode. Focus on the words.');
+         return;
+       }
+       audioToggle.setAttribute('aria-pressed', 'true');
+       audioToggle.textContent = '🎧 Lo-fi on';
+       try { await lofi.play(); friendlyMessage('🎶 Lo-fi vibes coming right up.'); }
+       catch { friendlyMessage('⚠️ Tap again to allow audio.'); }
+     });
+ 
+     document.addEventListener('visibilitychange', () => {
+       if (document.hidden) {
+         lofi.pause();
+         audioToggle.setAttribute('aria-pressed', 'false');
+         audioToggle.textContent = '🎧 Lo-fi off';
+       }
+     });
+ 
+     function recordTheme(theme) {
+       localStorage.setItem('paperbridge:theme', JSON.stringify(theme));
+     }
+@@ -1060,61 +1653,85 @@
+     const DEFAULT_THEME = {
+       mode:'dark',
+       vars:{ '--bg':'#0f172a','--card':'rgba(15,23,42,0.65)','--text':'#f1f5ff','--accent':'#8b5cf6','--border':'rgba(148,163,184,0.28)','--pill-bg':'rgba(99,102,241,0.15)','--pill-border':'rgba(129,140,248,0.38)','--glow':'#7dd3fc' }
+     };
+     const LIGHT_THEME = {
+       mode:'light',
+       vars:{ '--bg':'#f6f7ff','--card':'rgba(255,255,255,0.72)','--text':'#11142a','--accent':'#4f46e5','--border':'rgba(79,70,229,0.18)','--pill-bg':'rgba(79,70,229,0.12)','--pill-border':'rgba(129,140,248,0.42)','--glow':'#38bdf8' }
+     };
+     const DARK_THEME = JSON.parse(JSON.stringify(DEFAULT_THEME));
+ 
+     const THEME_PRESETS = {
+       ocean: { mode:'dark', vars:{'--bg':'#06162c','--card':'rgba(9,26,52,0.72)','--text':'#e0f7ff','--accent':'#06b6d4','--border':'rgba(45,154,202,0.28)','--pill-bg':'rgba(6,182,212,0.18)','--pill-border':'rgba(6,182,212,0.35)','--glow':'#06b6d4'} },
+       minimal: { mode:'light', vars:{'--bg':'#fdfdfc','--card':'rgba(255,255,255,0.86)','--text':'#111827','--accent':'#4b5563','--border':'rgba(148,163,184,0.25)','--pill-bg':'rgba(148,163,184,0.16)','--pill-border':'rgba(148,163,184,0.32)','--glow':'#94a3b8'} },
+       sunset: { mode:'dark', vars:{'--bg':'#1b0f2b','--card':'rgba(39,15,61,0.72)','--text':'#fde4ff','--accent':'#f472b6','--border':'rgba(244,114,182,0.28)','--pill-bg':'rgba(244,114,182,0.18)','--pill-border':'rgba(244,114,182,0.35)','--glow':'#fb7185'} },
+       cyber: { mode:'dark', vars:{'--bg':'#020617','--card':'rgba(15,23,42,0.82)','--text':'#cffafe','--accent':'#22d3ee','--border':'rgba(34,211,238,0.3)','--pill-bg':'rgba(34,211,238,0.18)','--pill-border':'rgba(34,211,238,0.32)','--glow':'#22d3ee'} }
+     };
+ 
+     function applyTheme(theme) {
+       Object.entries(theme.vars).forEach(([k,v]) => document.documentElement.style.setProperty(k,v));
+       document.documentElement.setAttribute('data-theme', theme.mode === 'light' ? 'light' : 'dark');
+       colorInputs.forEach(inp => {
+         const key = inp.dataset.var;
+         if (key && theme.vars[key]) inp.value = theme.vars[key];
+       });
+       recordTheme(theme);
++      updateContrastBadges();
++    }
++
++    function captureCurrentTheme() {
++      const vars = {};
++      ['--bg','--card','--text','--accent','--border','--pill-bg','--pill-border','--glow'].forEach(k => {
++        vars[k] = getComputedStyle(document.documentElement).getPropertyValue(k).trim();
++      });
++      return {
++        mode: document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
++        vars
++      };
+     }
+ 
+     function loadTheme() {
+       try {
+         const raw = localStorage.getItem('paperbridge:theme');
+         if (!raw) { applyTheme(DEFAULT_THEME); return; }
+         applyTheme(JSON.parse(raw));
+       } catch { applyTheme(DEFAULT_THEME); }
+     }
+     loadTheme();
+ 
++    (function applyThemeFromQuery(){
++      try {
++        const params = new URLSearchParams(location.search);
++        const themeParam = params.get('theme');
++        if (!themeParam) return;
++        const decoded = LZString.decompressFromEncodedURIComponent(themeParam) || themeParam;
++        const parsed = JSON.parse(decoded);
++        applyTheme(parsed);
++        friendlyMessage('🎨 Theme loaded from link.');
++      } catch(e) { console.warn('Theme param invalid', e); }
++    })();
++
+     function loadSavedThemes() {
+       try {
+         const raw = localStorage.getItem('paperbridge:savedThemes');
+         if (!raw) return [];
+         return JSON.parse(raw);
+       } catch { return []; }
+     }
+     function saveThemeList(list) { localStorage.setItem('paperbridge:savedThemes', JSON.stringify(list)); }
+     function renderSavedThemes() {
+       const themes = loadSavedThemes();
+       clearChildren(savedThemeList);
+       if (!themes.length) {
+         const li = document.createElement('li');
+         const small = document.createElement('small'); small.className = 'muted'; appendText(small, 'No saved themes yet. Craft one and press Save.');
+         li.appendChild(small); savedThemeList.appendChild(li); return;
+       }
+       themes.forEach((item, idx) => {
+         const li = document.createElement('li');
+         li.style.display = 'flex'; li.style.justifyContent = 'space-between'; li.style.alignItems = 'center'; li.style.gap = '12px';
+         const name = document.createElement('span'); appendText(name, item.name);
+         const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '8px';
+         const applyBtn = document.createElement('button'); applyBtn.className = 'ghost'; applyBtn.textContent = 'Apply';
+         applyBtn.addEventListener('click', () => applyTheme(item.theme));
+         const exportBtn = document.createElement('button'); exportBtn.className = 'ghost'; exportBtn.textContent = 'Export';
+         exportBtn.addEventListener('click', () => exportTheme(item));
+@@ -1147,322 +1764,542 @@
+       const theme = {
+         mode: document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
+         vars: {}
+       };
+       colorInputs.forEach(inp => {
+         const key = inp.dataset.var;
+         if (key) theme.vars[key] = inp.value;
+       });
+       theme.vars['--glow'] = getComputedStyle(document.documentElement).getPropertyValue('--glow').trim() || '#7dd3fc';
+       const list = loadSavedThemes(); list.push({ name, theme }); saveThemeList(list); renderSavedThemes();
+       themeNameInput.value = ''; friendlyMessage('💾 Theme saved. Share it anytime.');
+     });
+ 
+     function exportTheme(item) {
+       const data = JSON.stringify(item, null, 2);
+       const blob = new Blob([data], { type: 'application/json' });
+       const url = URL.createObjectURL(blob);
+       const a = document.createElement('a'); a.href = url; a.download = item.name.replace(/\s+/g,'-').toLowerCase() + '.theme';
+       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+     }
+ 
+     themeReset.addEventListener('click', () => { applyTheme(DEFAULT_THEME); friendlyMessage('Reset to default glow.'); });
+     themeDark.addEventListener('click', () => { applyTheme(DARK_THEME); friendlyMessage('🌙 Night shift activated.'); });
+     themeLight.addEventListener('click', () => { applyTheme(LIGHT_THEME); friendlyMessage('☀️ Daylight mode restored.'); });
+ 
++    tooltipModeToggle.addEventListener('change', () => {
++      setTooltipMode(tooltipModeToggle.checked ? 'click' : 'hover');
++    });
++
++    privateModeToggle.addEventListener('change', () => {
++      applyPrivateMode(privateModeToggle.checked);
++    });
++
++    offlineQueueToggle.addEventListener('change', () => {
++      applyOfflineQueue(offlineQueueToggle.checked);
++      if (offlineQueueEnabled) persistOfflineQueue();
++    });
++
+     colorInputs.forEach(inp => {
+       inp.addEventListener('input', () => {
+         const key = inp.dataset.var; if (!key) return;
+         document.documentElement.style.setProperty(key, inp.value);
+         const current = {
+           mode: document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
+           vars: {}
+         };
+         ['--bg','--card','--text','--accent','--border','--pill-bg','--pill-border','--glow'].forEach(k => {
+           current.vars[k] = getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+         });
+         recordTheme(current);
++        updateContrastBadges();
+       });
+     });
+ 
+     function togglePanel(open) {
+       if (open) { themePanel.classList.remove('hidden'); themePanel.setAttribute('aria-hidden','false'); }
+       else { themePanel.classList.add('hidden'); themePanel.setAttribute('aria-hidden','true'); }
+     }
+     const openThemeBtn = document.getElementById('openTheme');
+     openThemeBtn.addEventListener('click', () => togglePanel(themePanel.classList.contains('hidden')));
+     gear.addEventListener('click', () => togglePanel(themePanel.classList.contains('hidden')));
+     themeClose.addEventListener('click', () => togglePanel(false));
+ 
+     themeCopy.addEventListener('click', async () => {
+       try {
+         const data = localStorage.getItem('paperbridge:theme');
+         if (!data) throw new Error('No theme');
+         await navigator.clipboard.writeText(data);
+         alert('Theme JSON copied.');
+       } catch { alert('Could not copy theme JSON.'); }
+     });
+ 
+     themePaste.addEventListener('click', async () => {
+       try {
+         const text = await navigator.clipboard.readText();
+         const parsed = JSON.parse(text);
+         applyTheme(parsed);
+         friendlyMessage('📋 Theme pasted from clipboard.');
+       } catch { alert('Clipboard did not contain valid theme JSON.'); }
+     });
+ 
+     themeExport.addEventListener('click', () => {
+       const data = localStorage.getItem('paperbridge:theme');
+       if (!data) { alert('No theme to export.'); return; }
+       exportTheme({ name: 'paperbridge-theme', theme: JSON.parse(data) });
+     });
+ 
++    themeShare.addEventListener('click', async () => {
++      try {
++        const theme = captureCurrentTheme();
++        const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(theme));
++        const url = new URL(location.href);
++        url.searchParams.set('theme', compressed);
++        await navigator.clipboard.writeText(url.toString());
++        alert('Theme link copied.');
++      } catch { alert('Could not copy theme link.'); }
++    });
++
++    themeImageInput.addEventListener('change', () => {
++      const file = themeImageInput.files && themeImageInput.files[0];
++      if (!file) return;
++      const reader = new FileReader();
++      reader.onload = () => {
++        const img = new Image();
++        img.onload = () => {
++          const canvas = document.createElement('canvas');
++          canvas.width = 100; canvas.height = 100;
++          const ctx = canvas.getContext('2d');
++          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
++          const data = ctx.getImageData(0,0,canvas.width,canvas.height).data;
++          const samples = [];
++          for (let i=0;i<data.length;i+=24) {
++            const r = data[i], g = data[i+1], b = data[i+2];
++            const brightness = 0.299*r + 0.587*g + 0.114*b;
++            samples.push({ r, g, b, brightness });
++          }
++          if (!samples.length) { alert('Could not read colors from image.'); return; }
++          samples.sort((a,b)=>a.brightness-b.brightness);
++          const dark = samples[0];
++          const light = samples[samples.length-1];
++          const accent = samples[Math.min(samples.length-1, Math.floor(samples.length*0.65))];
++          const mode = dark.brightness < 128 ? 'dark' : 'light';
++          const theme = {
++            mode,
++            vars: {
++              '--bg': rgbObjToHex(dark),
++              '--card': rgbObjToRgba(dark, mode === 'dark' ? 0.7 : 0.85),
++              '--text': rgbObjToHex(light),
++              '--accent': rgbObjToHex(accent),
++              '--border': rgbObjToRgba(accent, 0.28),
++              '--pill-bg': rgbObjToRgba(accent, 0.2),
++              '--pill-border': rgbObjToRgba(accent, 0.35),
++              '--glow': rgbObjToHex(accent)
++            }
++          };
++          applyTheme(theme);
++          friendlyMessage('🎨 Palette extracted from image.');
++        };
++        img.src = reader.result;
++      };
++      reader.readAsDataURL(file);
++    });
++
+     loadExternalGlossary.addEventListener('click', () => {
++      if (privateMode) { alert('Disable private mode to load external glossaries.'); return; }
+       const url = externalGlossaryUrlInput.value.trim();
+-      fetchAndLoadExternalGlossary(url).catch(() => alert('Could not load glossary.'));
++      fetchAndLoadExternalGlossary(url).catch((err) => alert(err.message || 'Could not load glossary.'));
+     });
+     clearExternalGlossary.addEventListener('click', () => {
+       externalGlossaryUrlInput.value = '';
+       statusPill.textContent = 'Glossary URL cleared';
++      if (externalGlossaryHost) externalGlossaryHost.textContent = '';
++    });
++
++    glossaryExport.addEventListener('click', () => {
++      const entries = Object.keys(customGlossary || {});
++      if (!entries.length) { alert('No custom glossary entries yet.'); return; }
++      const data = JSON.stringify(customGlossary, null, 2);
++      const blob = new Blob([data], { type: 'application/json' });
++      const url = URL.createObjectURL(blob);
++      const a = document.createElement('a'); a.href = url; a.download = 'paperbridge-glossary.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
++    });
++
++    glossaryClearCustom.addEventListener('click', () => {
++      if (!Object.keys(customGlossary || {}).length) { alert('No custom entries to clear.'); return; }
++      if (!confirm('Clear all custom glossary entries?')) return;
++      for (const key of Object.keys(LARGE_GLOSSARY)) {
++        if (!FALLBACK_GLOSSARY[key]) delete LARGE_GLOSSARY[key];
++      }
++      customGlossary = {};
++      persistCustomGlossary();
++      buildGlossaryIndex();
++      renderGlossary([]);
++      persistOfflineQueue();
++      statusPill.textContent = 'Custom glossary cleared';
++      friendlyMessage('📚 Custom glossary reset.');
++      alert('Custom glossary cleared.');
+     });
+ 
+     saveAiKeyBtn.addEventListener('click', () => {
+       const key = aiKeyInput.value.trim();
+       if (!key) { alert('Paste an API key first.'); return; }
+       localStorage.setItem('paperbridge:aiKey', key);
+       alert('API key stored locally.');
+     });
+     clearAiKeyBtn.addEventListener('click', () => {
+       localStorage.removeItem('paperbridge:aiKey');
+       aiKeyInput.value = '';
+       alert('API key cleared.');
+     });
+     const storedKey = localStorage.getItem('paperbridge:aiKey');
+     if (storedKey) aiKeyInput.value = storedKey;
+ 
+     glossaryUpload.addEventListener('change', (e) => {
+       const f = e.target.files && e.target.files[0];
+       if (!f) return;
+       const reader = new FileReader();
+       reader.onload = () => {
+         try {
+           const parsed = JSON.parse(String(reader.result || ''));
+           Object.assign(LARGE_GLOSSARY, parsed);
++          Object.assign(customGlossary, parsed);
++          persistCustomGlossary();
+           buildGlossaryIndex();
++          persistOfflineQueue();
+           alert('Glossary merged.');
+         } catch { alert('Invalid glossary JSON.'); }
+       };
+       reader.readAsText(f);
+     });
+ 
+     document.addEventListener('dragover', e => e.preventDefault());
+     document.addEventListener('drop', (e) => {
+       e.preventDefault();
+       const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+       if (!f) return;
+       if (!f.name.endsWith('.json')) return alert('Drop a .json glossary file.');
+       const reader = new FileReader();
+       reader.onload = () => {
+         try {
+           const parsed = JSON.parse(reader.result);
+           Object.assign(LARGE_GLOSSARY, parsed);
++          Object.assign(customGlossary, parsed);
++          persistCustomGlossary();
+           buildGlossaryIndex();
++          persistOfflineQueue();
+           alert('Glossary file merged.');
+         } catch { alert('Invalid JSON file'); }
+       };
+       reader.readAsText(f);
+     });
+ 
+     btnAI.addEventListener('click', async () => {
++      if (privateMode) { alert('Disable private mode to use AI rewrite.'); return; }
+       const key = localStorage.getItem('paperbridge:aiKey');
+       if (!key) { alert('Paste an OpenAI API key in Theme & AI panel to enable AI rewrite.'); return; }
+       const raw = inputEl.value || '';
+       if (!raw.trim()) { alert('Paste some text first.'); return; }
+       statusPill.textContent = 'Calling OpenAI…';
+       friendlyMessage('🤖 Crafting an AI-assisted rewrite.');
+       try {
+         const response = await fetch('https://api.openai.com/v1/chat/completions', {
+           method: 'POST',
+           headers: {'Content-Type': 'application/json','Authorization': 'Bearer ' + key},
+           body: JSON.stringify({
+             model: 'gpt-4o-mini',
+             messages: [
+               { role: 'system', content: 'You are PaperBridge, an assistant that rewrites text into clear, human-friendly language while keeping critical meaning intact.' },
+               { role: 'user', content: 'Rewrite and simplify this text with tone ' + toneSelect.value + ':\n' + raw }
+             ],
+             temperature: 0.6
+           })
+         });
+         const data = await response.json();
+         const aiText = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+         if (!aiText) throw new Error('No response');
+         inputEl.value = raw + '\n\n---\nAI rewrite:\n' + aiText.trim();
+         runSimplifyFlow('simple');
+       } catch (err) {
+         console.error(err);
+         alert('AI rewrite failed. Check your API key or network.');
+         statusPill.textContent = 'AI failed';
+       }
+     });
+ 
+     fileInput.addEventListener('change', (e) => {
+       const f = e.target.files && e.target.files[0];
+       if (!f) return;
+       const name = f.name.toLowerCase();
+       if (name.endsWith('.docx')) {
+         const reader = new FileReader();
+-        reader.onload = function(ev) {
++        reader.onload = async function(ev) {
++          try { await ensureMammoth(); }
++          catch (err) { alert(err.message || 'Mammoth could not load in private mode.'); return; }
+           const ab = ev.target.result;
+-          mammoth.extractRawText({arrayBuffer:ab}).then(result => {
++          window.mammoth.extractRawText({arrayBuffer:ab}).then(result => {
+             inputEl.value = result.value || '';
++            updateInputMetrics();
+             runSimplifyFlow('simple');
++            persistOfflineQueue();
+           }).catch(()=>{ alert('Could not parse docx.'); });
+         };
+         reader.readAsArrayBuffer(f);
+       } else if (name.endsWith('.pdf')) {
+         const reader = new FileReader();
+         reader.onload = async function(ev) {
++          try { await ensurePdf(); }
++          catch (err) { alert(err.message || 'PDF.js could not load in private mode.'); return; }
+           const ab = ev.target.result;
+           try {
+-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+-            const loadingTask = pdfjsLib.getDocument({data:ab});
++            const loadingTask = window.pdfjsLib.getDocument({data:ab});
+             const pdf = await loadingTask.promise;
+             let text = '';
+             for (let i=1;i<=pdf.numPages;i++){
+               const page = await pdf.getPage(i);
+               const content = await page.getTextContent();
+               const strings = content.items.map(it => it.str);
+               text += strings.join(' ') + '\n\n';
+             }
+             inputEl.value = text;
++            updateInputMetrics();
+             runSimplifyFlow('simple');
++            persistOfflineQueue();
+           } catch (err) {
+             console.error(err);
+             alert('Could not extract text from PDF. Consider converting to .docx or .txt.');
+           }
+         };
+         reader.readAsArrayBuffer(f);
+       } else {
+         const reader = new FileReader();
+         reader.onload = function(ev) {
+           inputEl.value = String(ev.target.result || '');
++          updateInputMetrics();
+           runSimplifyFlow('simple');
++          persistOfflineQueue();
+         };
+         reader.readAsText(f);
+       }
+     });
+ 
+     btnMergeGlossary.addEventListener('click', () => {
+       if (!glossaryUpload.files || !glossaryUpload.files[0]) { alert('Choose a glossary JSON file first.'); return; }
+       glossaryUpload.dispatchEvent(new Event('change'));
+     });
+ 
+     document.addEventListener('keydown', (ev) => {
+-      if (ev.key === 'Escape' && !themePanel.classList.contains('hidden')) {
+-        themePanel.classList.add('hidden'); themePanel.setAttribute('aria-hidden', 'true');
++      if (ev.key === '?' && !ev.ctrlKey && !ev.metaKey) {
++        ev.preventDefault();
++        showShortcutSheet();
++      }
++      if (ev.key === 'Escape') {
++        const pop = document.querySelector('.popover');
++        if (pop) { pop.remove(); return; }
++        if (!themePanel.classList.contains('hidden')) { togglePanel(false); }
++      }
++      if (ev.shiftKey && !ev.ctrlKey && !ev.metaKey) {
++        if (ev.key.toLowerCase() === 'o') {
++          ev.preventDefault();
++          togglePanel(themePanel.classList.contains('hidden'));
++        }
++        if (ev.key.toLowerCase() === 'v') {
++          ev.preventDefault();
++          visualToggle.click();
++        }
++        if (ev.key.toLowerCase() === 's') {
++          ev.preventDefault();
++          runSimplifyFlow('simple');
++        }
+       }
+     });
+ 
+     (function restoreFromURL(){
+       try {
+         const params = new URLSearchParams(location.search);
++        const protectedParam = params.get('tp');
+         const t = params.get('t');
+-        if (!t) return;
+-        const decompressed = LZString.decompressFromEncodedURIComponent(t);
+-        if (decompressed) {
+-          clearChildren(outputEl);
+-          const wrapper = document.createElement('div'); appendText(wrapper, decompressed);
+-          outputEl.appendChild(wrapper);
+-          statusPill.textContent = 'Shared result';
+-          const { hits } = simplifyForPreset(decompressed, presetSelect.value === '5' ? 'eli5' : presetSelect.value, parseInt(difficulty.value,10), toneSelect.value);
+-          const detected = Array.from(new Set(hits.map(h=>h.toLowerCase().trim())));
+-          renderGlossary(detected);
+-          modePill.textContent = 'Mode: Shared';
+-          termPill.textContent = `Terms: ${detected.length}`;
++        let finalText = null;
++        if (protectedParam) {
++          const unlocked = LZString.decompressFromEncodedURIComponent(protectedParam);
++          if (!unlocked) return;
++          const pass = prompt('Enter passphrase to unlock this link');
++          if (!pass) { alert('Passphrase required to view this link.'); return; }
++          const prefix = pass + '::';
++          if (!unlocked.startsWith(prefix)) { alert('Incorrect passphrase.'); return; }
++          finalText = unlocked.slice(prefix.length);
++        } else if (t) {
++          finalText = LZString.decompressFromEncodedURIComponent(t) || t;
++        }
++        if (!finalText) return;
++        clearChildren(outputEl);
++        const wrapper = document.createElement('div'); appendText(wrapper, finalText);
++        outputEl.appendChild(wrapper);
++        inputEl.value = finalText;
++        updateInputMetrics();
++        persistOfflineQueue({ text: finalText, glossary: customGlossary });
++        statusPill.textContent = 'Shared result';
++        const { hits } = simplifyForPreset(finalText, presetSelect.value === '5' ? 'eli5' : presetSelect.value, parseInt(difficulty.value,10), toneSelect.value);
++        const detected = Array.from(new Set(hits.map(h=>h.toLowerCase().trim())));
++        renderGlossary(detected);
++        modePill.textContent = 'Mode: Shared';
++        termPill.textContent = `Terms: ${detected.length}`;
++        if (params.get('visual') === '1') {
++          if (!visualContainer.classList.contains('active')) visualToggle.click();
++          renderVisualSummary(finalText);
+         }
+       } catch(e){}
+     })();
+ 
++    const storedTooltipMode = localStorage.getItem(TOOLTIP_MODE_KEY);
++    setTooltipMode(storedTooltipMode === 'click' ? 'click' : 'hover');
++
++    const storedPrivateMode = localStorage.getItem(PRIVATE_MODE_KEY);
++    applyPrivateMode(storedPrivateMode === 'true', true);
++
++    const storedOffline = localStorage.getItem(OFFLINE_QUEUE_TOGGLE_KEY);
++    applyOfflineQueue(storedOffline === 'true', true);
++    restoreOfflineQueue();
++
++    let storedVoiceSettings = {};
++    try { storedVoiceSettings = JSON.parse(localStorage.getItem(VOICE_SETTINGS_KEY) || '{}'); }
++    catch {}
++    if (storedVoiceSettings.rate && voiceRate) {
++      selectedRate = Math.min(1.2, Math.max(0.8, parseFloat(storedVoiceSettings.rate)) || 1);
++      voiceRate.value = String(selectedRate);
++      voiceRate.setAttribute('aria-valuenow', String(selectedRate));
++    }
++    if (storedVoiceSettings.voice) selectedVoiceUri = storedVoiceSettings.voice;
++    updateVoiceRateLabel();
++    if ('speechSynthesis' in window) {
++      populateVoices();
++      window.speechSynthesis.onvoiceschanged = populateVoices;
++    }
++
++    updateInputMetrics();
++
+     buildGlossaryIndex();
+ 
++    if ('serviceWorker' in navigator) {
++      navigator.serviceWorker.register('sw.js').catch(() => {});
++    }
++
+     const observer = new IntersectionObserver((entries) => {
+       entries.forEach(entry => {
+         if (entry.isIntersecting) {
+           navLinks.forEach(link => {
+             link.classList.toggle('active', link.getAttribute('href').slice(1) === entry.target.id);
+           });
+         }
+       });
+     }, { threshold:0.5 });
+     ['home','simplify','themes','learn','about'].forEach(id => {
+       const el = document.getElementById(id);
+       if (el) observer.observe(el);
+     });
+ 
+     const particlesCanvas = document.getElementById('particleCanvas');
+-    const ctx = particlesCanvas.getContext('2d');
++    let ctx = null;
+     let particles = [];
+     let mouseX = 0, mouseY = 0;
++    let animationId = null;
++    const prefersReducedMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+ 
+     function resizeCanvas() {
++      if (!particlesCanvas) return;
+       particlesCanvas.width = window.innerWidth;
+       particlesCanvas.height = window.innerHeight;
+     }
+-    window.addEventListener('resize', resizeCanvas);
+-    resizeCanvas();
+ 
+     function createParticles(count) {
+       particles = new Array(count).fill(0).map(() => ({
+         x: Math.random() * particlesCanvas.width,
+         y: Math.random() * particlesCanvas.height,
+         radius: Math.random() * 2 + 0.5,
+         alpha: Math.random() * 0.6 + 0.2,
+         speedX: (Math.random() - 0.5) * 0.4,
+         speedY: (Math.random() - 0.5) * 0.4
+       }));
+     }
+-    createParticles(120);
+-
+-    window.addEventListener('mousemove', (ev) => { mouseX = ev.clientX; mouseY = ev.clientY; });
+ 
+     function animateParticles() {
++      if (!ctx) return;
+       ctx.clearRect(0,0,particlesCanvas.width, particlesCanvas.height);
+       particles.forEach(p => {
+         const dx = (mouseX / particlesCanvas.width - 0.5) * 0.6;
+         const dy = (mouseY / particlesCanvas.height - 0.5) * 0.6;
+         p.x += p.speedX + dx; p.y += p.speedY + dy;
+         if (p.x < 0) p.x = particlesCanvas.width;
+         if (p.x > particlesCanvas.width) p.x = 0;
+         if (p.y < 0) p.y = particlesCanvas.height;
+         if (p.y > particlesCanvas.height) p.y = 0;
+         ctx.beginPath(); ctx.fillStyle = `rgba(125,211,252,${p.alpha})`;
+         ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fill();
+       });
+-      requestAnimationFrame(animateParticles);
++      animationId = requestAnimationFrame(animateParticles);
+     }
+-    animateParticles();
++
++    function startParticles() {
++      if (!particlesCanvas) return;
++      particlesCanvas.style.display = 'block';
++      ctx = particlesCanvas.getContext('2d');
++      resizeCanvas();
++      createParticles(120);
++      if (animationId) cancelAnimationFrame(animationId);
++      animateParticles();
++    }
++
++    function stopParticles() {
++      if (!particlesCanvas) return;
++      if (animationId) cancelAnimationFrame(animationId);
++      animationId = null;
++      if (ctx) ctx.clearRect(0,0,particlesCanvas.width, particlesCanvas.height);
++      particlesCanvas.style.display = 'none';
++      ctx = null;
++    }
++
++    window.addEventListener('resize', () => {
++      if (!prefersReducedMotion.matches) resizeCanvas();
++    });
++
++    window.addEventListener('mousemove', (ev) => { mouseX = ev.clientX; mouseY = ev.clientY; });
++
++    if (prefersReducedMotion.matches) {
++      stopParticles();
++    } else {
++      startParticles();
++    }
++
++    const handleMotionChange = (event) => {
++      if (event.matches) {
++        stopParticles();
++      } else {
++        startParticles();
++      }
++    };
++    if (prefersReducedMotion.addEventListener) prefersReducedMotion.addEventListener('change', handleMotionChange);
++    else if (prefersReducedMotion.addListener) prefersReducedMotion.addListener(handleMotionChange);
+ 
+     const consoleArt = `
+     ╔══════════════════════════╗
+     ║  🌉 Welcome to PaperBridge ║
+     ║  Words meet understanding ║
+     ╚══════════════════════════╝
+     `;
+     Object.defineProperty(window, 'bridge', {
+       get() {
+         console.log(consoleArt);
+         console.log('Keep building connections.');
+         return 'PaperBridge';
+       },
+       configurable: true
+     });
+ 
+     heroTitle.addEventListener('animationend', () => {
+       heroTitle.classList.add('complete');
+     });
+ 
+     const QUOTES = [
+       'Clarity is kindness. Thanks for choosing it.',
+       'PaperBridge loves a good before-and-after story.',
+       'Small words can carry big ideas across.',
+       'Keep bridging. Someone on the other side is cheering.'
