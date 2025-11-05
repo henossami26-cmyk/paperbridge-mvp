@@ -1,0 +1,27 @@
+diff --git a/manifest.json b/manifest.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..d1302f127fee957fa0abd12bec59dac3746af4cf
+--- /dev/null
++++ b/manifest.json
+@@ -0,0 +1,21 @@
++{
++  "name": "PaperBridge",
++  "short_name": "PaperBridge",
++  "start_url": ".",
++  "display": "standalone",
++  "background_color": "#0f172a",
++  "theme_color": "#8b5cf6",
++  "description": "Simplify, clarify, and humanize any document without leaving your browser.",
++  "icons": [
++    {
++      "src": "icon.svg",
++      "sizes": "192x192",
++      "type": "image/svg+xml"
++    },
++    {
++      "src": "icon.svg",
++      "sizes": "512x512",
++      "type": "image/svg+xml"
++    }
++  ]
++}
