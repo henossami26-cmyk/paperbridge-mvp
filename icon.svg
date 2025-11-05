@@ -1,0 +1,13 @@
+diff --git a/icon.svg b/icon.svg
+new file mode 100644
+index 0000000000000000000000000000000000000000..cbf3b370d22372cef022f47c58520181c727c744
+--- /dev/null
++++ b/icon.svg
+@@ -0,0 +1,7 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
++  <rect width="64" height="64" rx="16" fill="#111f4d"/>
++  <path d="M14 38c8-10 18-15 32-12" stroke="#a78bfa" stroke-width="6" stroke-linecap="round" fill="none"/>
++  <path d="M14 28c8-10 18-15 32-12" stroke="#6dd3ff" stroke-width="6" stroke-linecap="round" fill="none" opacity=".75"/>
++  <circle cx="18" cy="38" r="4" fill="#6dd3ff"/>
++  <circle cx="46" cy="26" r="4" fill="#a78bfa"/>
++</svg>
