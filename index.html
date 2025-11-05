@@ -1274,14 +1274,34 @@
     });
 
     btnAI.addEventListener('click', async () => {
-      const key = localStorage.getItem('paperbridge:aiKey');
-      if (!key) { alert('Paste an OpenAI API key in Theme & AI panel to enable AI rewrite.'); return; }
-      const raw = inputEl.value || '';
-      if (!raw.trim()) { alert('Paste some text first.'); return; }
-      statusPill.textContent = 'Calling OpenAI…';
-      friendlyMessage('🤖 Crafting an AI-assisted rewrite.');
-      try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const raw = inputEl.value || '';
+  if (!raw.trim()) { alert('Paste some text first.'); return; }
+
+  statusPill.textContent = 'Calling PaperBridge Proxy…';
+  friendlyMessage('🤖 Crafting an AI-assisted rewrite.');
+
+  try {
+    const response = await fetch('https://paperbridge-proxy.vercel.app/api/rewrite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: raw,
+        tone: toneSelect.value
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Rewrite failed');
+
+    inputEl.value = raw + '\n\n---\nAI rewrite:\n' + (data.rewrite || '').trim();
+    runSimplifyFlow('simple');
+  } catch (err) {
+    console.error(err);
+    alert('AI rewrite failed. Check your proxy or network.');
+    statusPill.textContent = 'AI failed';
+  }
+});
+
           method: 'POST',
           headers: {'Content-Type': 'application/json','Authorization': 'Bearer ' + key},
           body: JSON.stringify({
