@@ -1302,22 +1302,6 @@
   }
 });
 
-          method: 'POST',
-          headers: {'Content-Type': 'application/json','Authorization': 'Bearer ' + key},
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              { role: 'system', content: 'You are PaperBridge, an assistant that rewrites text into clear, human-friendly language while keeping critical meaning intact.' },
-              { role: 'user', content: 'Rewrite and simplify this text with tone ' + toneSelect.value + ':\n' + raw }
-            ],
-            temperature: 0.6
-          })
-        });
-        const data = await response.json();
-        const aiText = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-        if (!aiText) throw new Error('No response');
-        inputEl.value = raw + '\n\n---\nAI rewrite:\n' + aiText.trim();
-        runSimplifyFlow('simple');
       } catch (err) {
         console.error(err);
         alert('AI rewrite failed. Check your API key or network.');
